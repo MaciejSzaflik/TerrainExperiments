@@ -32,9 +32,40 @@
 		<div id="container"></div>
 		<script src="./three.js/examples/js/Detector.js"></script>
 		<script src="./SimplexNoise.js"></script>
+		<script src="./PerlinSimplex.js"></script>
+		<script src="./VertexColorHeight.js"></script>
 		<script src="./three.js/build/three.min.js"></script>
 		<script src="./three.js/examples/js/libs/stats.min.js"></script>
 		<script src="./three.js/examples/js/libs/tween.min.js"></script>
+		
+		<!-- Shaders -->
+		<script type="x-shader/x-vertex" id="vertexshader">
+
+			// switch on high precision floats
+			
+			//in vec4 position;
+			//in vec4 color;
+			varying vec4 vColor;
+		 
+		    void main() {
+		        vec3 newPosition = position +  vec3(0,vColor.r*100.0,0);
+		        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+		    }
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentshader">
+	 
+	 		varying lowp vec4 vColor;
+	        void main() {
+	            gl_FragColor = vColor;
+	        }
+
+		</script>
+
+		<!-- End Shaders -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+
 		<script>
 
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
@@ -47,19 +78,29 @@
 
 			var text = [];
 
-			var circles = [];
-			var circleSize = 0.95;
-
 			var x,y;
 
-			var cylinders = [];
+			var terrainElements = [];
 
 			var simpleLine;
 			var objectSelect = false;
 			var selectedObject;
 			var indexPoint = 0;
 
+			//Mouse variables
+			var lastX,lastY;
+			var divX,divY;
+			var wasClicked = false;
+			//
+			var uniforms = {
+				 time: { type: "f", value: 0 },
+				 resolution: { type: "v2", value: new THREE.Vector2 },
+				 texture: { type: "t", value: THREE.ImageUtils.loadTexture('./b.png') }
+				};
+
+
 			var sizeOfCamera;
+			var clock = 0;
 			init();
 			animate();
 
@@ -124,19 +165,40 @@
 			
 				var color, point, face, numberOfSides, vertexIndex;
 				mainGeometry.computeBoundingBox();
-				var vertexColorMaterial = new THREE.MeshBasicMaterial( { vertexColors: THREE.VertexColors } );
+
+
+				var shaderMaterial =
+				  new THREE.ShaderMaterial({
+				    vertexShader:   $('#vertexshader').text(),
+					fragmentShader: $('#fragmentshader').text()
+				  });
+
+				 
+
+				var itemMaterial = new THREE.ShaderMaterial({
+				    uniforms: uniforms,
+				    vertexShader: document.getElementById('vertexshader').innerHTML,
+				    fragmentShader: document.getElementById('fragmentshader').innerHTML
+				});
+
+
+
 				var faceIndices = [ 'a', 'b', 'c', 'd' ];
 				
 
+				var NoiseObject = PerlinSimplex;
+				NoiseObject.noiseDetail(3,1);
 
 				for ( var i = 0; i < mainGeometry.vertices.length; i++ ) 
 				{
 				    point = mainGeometry.vertices[ i ];
 					text[0].innerHTML = point.x;
-					var valueNoise = noise2D(point.x/35,point.y/35);
+					var valueNoise = NoiseObject.noise(point.x/size*2,point.y/size*2,0,0);
 				    color = new THREE.Color( 0xffffff );
+
+
 				    color.setRGB( valueNoise, valueNoise, valueNoise );
-				    mainGeometry.colors[i] = color; // use this array for convenience
+				    mainGeometry.colors[i] = color;
 				}
 
 
@@ -152,28 +214,42 @@
 				}
 
 
-				var plane = new THREE.Mesh(mainGeometry,  vertexColorMaterial );
+				var plane = new THREE.Mesh(mainGeometry, itemMaterial);
 				plane.position = vecPos; 
-
 				plane.geometry.materialsNeedUpdate = true;
 
 				scene.add( plane );
 
+				terrainElements.push(plane);
 				}
 
 			function onDocumentMouseDown(event)
 		    {
 				event.preventDefault();
+				wasClicked = true;
 
+				lastY = event.clientY;
+				lastX = event.clientX;
 				
 			}
 			function onDocumentMouseMove(event)
 			{
-				
+				event.preventDefault();
+				if(wasClicked)
+				{
+					divX = event.clientX - lastX;
+					divY = event.clientY - lastY;
+					terrainElements[0].rotation.x+=divY/sizeOfCamera;
+					terrainElements[0].rotation.y+=divX/sizeOfCamera;
+				}
+				lastY = event.clientY;
+				lastX = event.clientX;
+
 			}
 			function onDocumentMouseUp(event)
 			{
-
+				event.preventDefault();
+				wasClicked = false;
 			}
 			
 			function onWindowResize() 
@@ -191,12 +267,14 @@
 				requestAnimationFrame( animate );
 
 				stats.update();
-
+//
 				render();
 			}
 			function render()
 		    {
 				renderer.render( scene, camera );
+				clock+=1;
+				uniforms.time.value += 0.1;
 			}
 
 		</script>
