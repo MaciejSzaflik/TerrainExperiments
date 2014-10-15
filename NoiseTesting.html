@@ -35,6 +35,7 @@
 		<script src="./SimplexNoise.js"></script>
 		<script src="./PerlinSimplex.js"></script>
 		<script src="./VertexColorHeight.js"></script>
+		<script src="./THREEx.KeyboardState.js"></script>
 		<script src="./three.js/build/three.min.js"></script>
 		<script src="./three.js/examples/js/libs/stats.min.js"></script>
 		<script src="./three.js/examples/js/libs/tween.min.js"></script>
@@ -43,12 +44,15 @@
 		<script type="x-shader/x-vertex" id="vertexshader">
 
 			attribute float displacement;
+			attribute vec3 colors;
 			varying lowp vec4 vColor;
+			varying vec3 passNormal;
 		 
 		    void main() {
-		        vec3 newPosition = position +  vec3(0,0,displacement*15.0);
+		    	passNormal = normalize(normal);
+		        vec3 newPosition = position +  vec3(0,0,displacement*0.0);
 		        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-		        vColor = vec4(displacement,displacement,displacement,1);
+		        vColor = vec4(colors,1);
 		    }
 
 		</script>
@@ -56,9 +60,17 @@
 		<script type="x-shader/x-fragment" id="fragmentshader">
 	 		
 			varying lowp vec4 vColor;
+			varying vec3 passNormal;
+			uniform vec3 mainLight;
+
 	        void main() {
-	            gl_FragColor = vColor;
-	        }
+	            vec3 light = mainLight;
+				// ensure it's normalized
+				light = normalize(light);
+				float dProd = max(0.0, dot(passNormal, light));
+				//feed into our frag colour
+				gl_FragColor = vec4(dProd + 0.1, dProd + 0.1, dProd*0.9 + 0.05, 1.0);
+		        }
 
 		</script>
 
@@ -76,11 +88,14 @@
 			var mouseVector;
 
 			var text = [];
+			var positionTransformVector;
 			var noiseValues = [];
 
 			var x,y;
 
 			var terrainElements = [];
+
+			var keyboardInteraction;
 
 			var simpleLine;
 			var objectSelect = false;
@@ -91,17 +106,25 @@
 			var lastX,lastY;
 			var divX,divY;
 			var wasClicked = false;
+			var firstInteraction = false
 			//
 			var noiseAttributes = {
 				displacement: {
 				    type: 'f', // a float
 				    value: [] // an empty array
-				}
-			};
+				},
+				colors: { 
+					type: "c", 
+					value: [] }
+			}
 			var uniforms = {
 				dis: {
 				    type: 'f', // a float
 				    value: 0 
+			  },
+			  	mainLight: {
+			  		type: "v3",
+			  		value: new THREE.Vector3( 0, 1, 1 )
 			  }
 			};
 
@@ -114,6 +137,7 @@
 
 				initPerm();
 				container = document.getElementById( 'container' );
+				keyboardInteraction = new THREEx.KeyboardState();
 
 				sizeOfCamera = 50;
 
@@ -122,9 +146,9 @@
 				camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 				scene = new THREE.Scene();
-
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setClearColorHex( 0x0f0f0f, 1 );
 
 				projector = new THREE.Projector();
 				mouseVector = new THREE.Vector3();
@@ -132,15 +156,15 @@
 
 				createText(100,100,50,10);
 
+				uniforms.mainLight.value = new THREE.Vector3(0.2,1,1);
 
+				var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+				directionalLight.position.set( 0, 1, 0 ).normalize(); 
+				scene.add( directionalLight );
 
 				container.appendChild( renderer.domElement );
 
-
-				var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 ); 
-				directionalLight.position.set( 300, 300, -300 ); 
-				scene.add( directionalLight );
-				createPlane(new THREE.Vector3(0,0,0),70,0xffffff,100);
+				createPlane(new THREE.Vector3(0,-15,0),70,0xffffff,150);
 
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
@@ -177,45 +201,70 @@
 				
 
 				var NoiseObject = PerlinSimplex;
-				NoiseObject.noiseDetail(3,1);
+				NoiseObject.noiseDetail(3,0.5);
 				var values = noiseAttributes.displacement.value;
+				var valuesColors = noiseAttributes.colors.value;
 				for ( var i = 0; i < mainGeometry.vertices.length; i++ ) 
 				{
 				    point = mainGeometry.vertices[ i ];
-					text[0].innerHTML = point.x;
-					var valueNoise = NoiseObject.noise(point.x/size*2,point.y/size*2,0,0);
-				    color = new THREE.Color( 0xffffff );
+					var valueNoise = NoiseObject.noise(point.x/size*1,point.y/size*1,0,0);
+
+				    color = new THREE.Color( 0xffffff );  
+				    color.setRGB( valueNoise, valueNoise, valueNoise );
+					mainGeometry.vertices[ i ] = new THREE.Vector3(point.x,point.y,point.z + valueNoise*45);
+
 				    noiseValues.push(valueNoise);
 				    values.push(valueNoise);
-				    color.setRGB( valueNoise, valueNoise, valueNoise );
-
-				    mainGeometry.colors[i] = color;
+				    valuesColors.push(color);
 				}
 
-				var basicDisplacmentMat = getMaterial();
+				var basicDisplacmentMat = getMaterialDis();
+
 
 				for ( var i = 0; i < mainGeometry.faces.length; i++ ) 
 				{
 				    face = mainGeometry.faces[ i ];
-				    numberOfSides = ( face instanceof THREE.Face3 ) ? 3 : 4;
-				    for( var j = 0; j < numberOfSides; j++ ) 
-				    {
-				        vertexIndex = face[ faceIndices[ j ] ];
-				        face.vertexColors[ j ] = mainGeometry.colors[ vertexIndex ];
-				    }
+
+				    face.vertexNormals[0] = null;
+				    face.vertexNormals[1] = null;
+				    face.vertexNormals[2] = null;
 				}
 
 
+				for ( var i = 0; i < mainGeometry.faces.length; i++ ) 
+				{
+				    face = mainGeometry.faces[ i ];
+
+				    var normalVec = calculateNormals(
+				    	mainGeometry.vertices[face.a], 
+				    	mainGeometry.vertices[face.b], 
+				    	mainGeometry.vertices[face.c]);	
+
+				    for(var j =0;j< 3;j++)
+				    {
+				    	if(face.vertexNormals[j] == null)
+							face.vertexNormals[j] = normalVec;
+						else
+						{
+							face.vertexNormals[j] += normalVec;
+							console.log(face.vertexNormals[j]);
+						}
+
+						face.vertexNormals[j].normalize();
+
+					}
+
+				}
 				var plane = new THREE.Mesh(mainGeometry, basicDisplacmentMat);
 				plane.position = vecPos; 
 				plane.geometry.materialsNeedUpdate = true;
 
 				scene.add( plane );
 
-				terrainElements.push(plane);
-				}
-
-			function getMaterial()
+				terrainElements.push(plane);	
+			}	
+			
+			function getMaterialDis()
 			{
 				var mat =  new THREE.ShaderMaterial({
 					attributes: noiseAttributes,
@@ -223,6 +272,16 @@
 				    vertexShader: document.getElementById('vertexshader').innerHTML,
 				    fragmentShader: document.getElementById('fragmentshader').innerHTML
 				});
+				mat.wireframe = false;
+				//mat.lights = true;
+				//mat.shading = THREE.FlatShading;
+				return mat;
+			}
+			function getMaterialLamb()
+			{
+				var mat =  new THREE.MeshPhongMaterial({
+        		color: 'white' 
+      			});
 				return mat;
 			}
 
@@ -230,7 +289,7 @@
 		    {
 				event.preventDefault();
 				wasClicked = true;
-
+				firstInteraction = true;
 				lastY = event.clientY;
 				lastX = event.clientX;
 				
@@ -238,17 +297,63 @@
 			function onDocumentMouseMove(event)
 			{
 				event.preventDefault();
-				if(wasClicked)
-				{
+
 					divX = event.clientX - lastX;
 					divY = event.clientY - lastY;
+
+				if(wasClicked)
+				{	
 					terrainElements[0].rotation.x+=divY/sizeOfCamera;
 					terrainElements[0].rotation.y+=divX/sizeOfCamera;
+	
+				}
+				else if(firstInteraction)
+				{
+					setCameraRotation(divX,divY);
 				}
 				lastY = event.clientY;
 				lastX = event.clientX;
 
+
 			}
+
+			function setCameraRotation(divx,divY)
+			{
+
+				camera.rotation.y-= 0.1*divX/sizeOfCamera;
+				camera.rotation.x-= 0.1*divY/sizeOfCamera;
+
+				var x = Math.sin((camera.rotation.x*Math.PI)/180.0);
+				var y = Math.sin((camera.rotation.y*Math.PI)/180.0);
+				var z = Math.sin((camera.rotation.z*Math.PI)/180.0);
+				var mulFactor =  1.0/(x + y + z);
+
+
+				positionTransformVector = new THREE.Vector3(x*mulFactor,y*mulFactor,z*mulFactor);
+				positionTransformVector.normalize();
+			}
+			function keyboardInfo()
+			{
+				if(keyboardInteraction.pressed("w"))
+				{
+					
+					camera.position.z -= positionTransformVector.x;
+				}
+				if(keyboardInteraction.pressed("s"))
+				{
+					camera.position.x -= 1;
+				}
+				if(keyboardInteraction.pressed("a"))
+				{
+					camera.position.z += 1;
+				}
+				if(keyboardInteraction.pressed("d"))
+				{
+					camera.position.z -= 1;
+				}
+			}
+
+
 			function onDocumentMouseUp(event)
 			{
 				event.preventDefault();
@@ -260,6 +365,7 @@
 				windowHalfX = window.innerWidth / 2;
 				windowHalfY = window.innerHeight / 2;
 
+
 				camera.aspect = window.innerWidth / window.innerHeight;
 				camera.updateProjectionMatrix();
 
@@ -268,17 +374,31 @@
 			function animate()
 			{
 				requestAnimationFrame( animate );
+				uniforms.mainLight.value = new THREE.Vector3(Math.cos(clock*0.05),Math.sin(clock*0.05),Math.cos(clock*0.05));
 
 				stats.update();
-//
 				render();
 			}
 			function render()
 		    {
 				renderer.render( scene, camera );
+				keyboardInfo();
 				clock+=1;
 			}
 
+			
+
+			function calculateNormals( a, b, c)
+			{
+				var ab = new THREE.Vector3(b.x - a.x, b.y - a.y, b.z - a.z);
+				var ac = new THREE.Vector3(c.x - a.x, c.y - a.y, c.z - a.z);
+
+				var i = ab.y*ac.z - ab.z*ac.y;
+				var j = ab.x*ac.z - ab.z*ac.x;
+				var k = ab.x*ac.y - ab.y*ac.x;
+
+				return new THREE.Vector3(i,j,k);
+			}
 		</script>
 
 	</body>
