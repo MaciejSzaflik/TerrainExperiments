@@ -39,6 +39,7 @@
 		<script src="./three.js/build/three.min.js"></script>
 		<script src="./three.js/examples/js/libs/stats.min.js"></script>
 		<script src="./three.js/examples/js/libs/tween.min.js"></script>
+		<script type="text/javascript" src="dat.gui.min.js"></script>
 		
 		<!-- Shaders -->
 		<script type="x-shader/x-vertex" id="vertexshader">
@@ -62,6 +63,7 @@
 			varying lowp vec4 vColor;
 			varying vec3 passNormal;
 			uniform vec3 mainLight;
+			uniform vec3 lightColor;
 
 	        void main() {
 	            vec3 light = mainLight;
@@ -69,7 +71,7 @@
 				light = normalize(light);
 				float dProd = max(0.0, dot(passNormal, light));
 				//feed into our frag colour
-				gl_FragColor = vec4(dProd + 0.1, dProd + 0.1, dProd*0.9 + 0.05, 1.0);
+				gl_FragColor = vec4(dProd*lightColor.x, dProd*lightColor.y, dProd*lightColor.z, 1.0);
 		        }
 
 		</script>
@@ -80,6 +82,8 @@
 		<script>
 
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var GuiVarHolder = null;
 
 			var container, stats;
 			var camera, scene, renderer;
@@ -107,6 +111,7 @@
 			var divX,divY;
 			var wasClicked = false;
 			var firstInteraction = false
+			var cameraEnabled = false;
 			//
 			var noiseAttributes = {
 				displacement: {
@@ -125,7 +130,11 @@
 			  	mainLight: {
 			  		type: "v3",
 			  		value: new THREE.Vector3( 0, 1, 1 )
-			  }
+			  },
+			  	lightColor: {
+			  		type: "v3",
+			  		value: new THREE.Vector3 (1, 1, 1)
+			  	}
 			};
 
 			var sizeOfCamera;
@@ -153,8 +162,7 @@
 				projector = new THREE.Projector();
 				mouseVector = new THREE.Vector3();
 
-
-				createText(100,100,50,10);
+//				createText(100,100,50,10);
 
 				uniforms.mainLight.value = new THREE.Vector3(0.2,1,1);
 
@@ -176,6 +184,54 @@
 				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
 
 			}
+
+			var FizzyText = function() {
+			  this.message = 'dat.gui';
+			  this.cameraEnabled = false;
+			  this.rotationEnabled = false;
+			  this.keyboardEnabled = false;
+			  this.lightX = 0.02;
+			  this.lightY = 0.02;
+			  this.lightZ = 0.02;
+
+			  this.lightCR = 1;
+			  this.lightCG = 1;
+			  this.lightCB = 1;
+
+			  this.setColor = function()
+			  {
+			  	uniforms.lightColor = new THREE.Vector3(this.lightCR,this.lightCG,this.lightCB);
+			  }
+			  //this.explode = function() { ... };
+			  // Define render logic ...
+			};
+
+			window.onload = function() {
+			  GuiVarHolder = new FizzyText();
+			  var gui = new dat.GUI();
+
+			  var f1 = gui.addFolder('ControlsEnabled');
+
+			  f1.add(GuiVarHolder, 'cameraEnabled');
+			  f1.add(GuiVarHolder, 'rotationEnabled');
+			  f1.add(GuiVarHolder, 'keyboardEnabled');
+
+			  var f2 = gui.addFolder('MainLight');
+
+			  f2.add(GuiVarHolder, 'lightX',0,0.06);
+			  f2.add(GuiVarHolder, 'lightY',0,0.06);
+			  f2.add(GuiVarHolder, 'lightZ',0,0.06);
+
+			  var f3 = gui.addFolder('MainLight Color');
+
+			  f3.add(GuiVarHolder, 'lightCR',0,1);
+			  f3.add(GuiVarHolder, 'lightCG',0,1);
+			  f3.add(GuiVarHolder, 'lightCB',0,1);
+			  f3.add(GuiVarHolder, 'setColor');
+			 //gui.add(text, 'explode');
+			};
+
+
 			function createText(sizeX,sizeY,posX,posY)
 			{
 				var text2 = document.createElement('div');
@@ -301,7 +357,7 @@
 					divX = event.clientX - lastX;
 					divY = event.clientY - lastY;
 
-				if(wasClicked)
+				if(wasClicked && GuiVarHolder.rotationEnabled)
 				{	
 					terrainElements[0].rotation.x+=divY/sizeOfCamera;
 					terrainElements[0].rotation.y+=divX/sizeOfCamera;
@@ -319,6 +375,8 @@
 
 			function setCameraRotation(divx,divY)
 			{
+				if(!GuiVarHolder.cameraEnabled)
+					return;
 
 				camera.rotation.y-= 0.1*divX/sizeOfCamera;
 				camera.rotation.x-= 0.1*divY/sizeOfCamera;
@@ -334,9 +392,10 @@
 			}
 			function keyboardInfo()
 			{
+				if(GuiVarHolder!=null &&!GuiVarHolder.keyboardEnabled)
+					return;
 				if(keyboardInteraction.pressed("w"))
-				{
-					
+				{	
 					camera.position.z -= positionTransformVector.x;
 				}
 				if(keyboardInteraction.pressed("s"))
@@ -374,7 +433,14 @@
 			function animate()
 			{
 				requestAnimationFrame( animate );
-				uniforms.mainLight.value = new THREE.Vector3(Math.cos(clock*0.05),Math.sin(clock*0.05),Math.cos(clock*0.05));
+				if(GuiVarHolder != null)
+				{
+				uniforms.mainLight.value = new THREE.Vector3(Math.cos(clock*GuiVarHolder.lightX),Math.sin(clock*GuiVarHolder.lightY),Math.cos(clock*GuiVarHolder.lightZ));
+				}
+				else
+				{
+					uniforms.mainLight.value = new THREE.Vector3(1,1,1);
+				}
 
 				stats.update();
 				render();
