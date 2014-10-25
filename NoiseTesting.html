@@ -1,7 +1,10 @@
 <!DOCTYPE html>
+
+
+
 <html lang="en">
 	<head>
-		<title>b-spline	</title>
+		<title>Terrain Experiments</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
@@ -28,8 +31,41 @@
 			}
 		</style>
 	</head>
+
 	<body>
-		<div id="container"></div>
+
+		<style type="text/css">
+		    div.container {
+		        margin: 15px;   
+		    }
+		    div.left {
+		    	float: left;
+		        background-color:#202020;    
+		    }
+		    div.right {
+		    	float: right;
+		        background-color:#303030;    	
+		    }
+		</style>
+
+
+		
+
+		<div id="main">
+			<div id= "container" class=  "right"> 
+			</div>
+			<div id="map_Container" class=  "left">
+				<input type='file'/>	
+				<div>
+					<img id="myImg" src="#" alt="image"/>
+				</div>
+				<div>
+					<img id="convertedImage" src="#" alt="image" />
+				</div>
+
+			</div>
+		</div>
+		
 		<script src="./three.js/examples/js/Detector.js"></script>
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
 		<script src="./SimplexNoise.js"></script>
@@ -40,6 +76,7 @@
 		<script src="./three.js/examples/js/libs/stats.min.js"></script>
 		<script src="./three.js/examples/js/libs/tween.min.js"></script>
 		<script type="text/javascript" src="dat.gui.min.js"></script>
+		<script type="text/javascript" src="caman.full.min.js"></script>
 		
 		<!-- Shaders -->
 		<script type="x-shader/x-vertex" id="vertexshader">
@@ -63,7 +100,7 @@
 			varying lowp vec4 vColor;
 			varying vec3 passNormal;
 			uniform vec3 mainLight;
-			uniform vec3 lightColor;
+			uniform vec3 lightColorDiffuse;
 
 	        void main() {
 	            vec3 light = mainLight;
@@ -71,7 +108,7 @@
 				light = normalize(light);
 				float dProd = max(0.0, dot(passNormal, light));
 				//feed into our frag colour
-				gl_FragColor = vec4(dProd*lightColor.x, dProd*lightColor.y, dProd*lightColor.z, 1.0);
+				gl_FragColor = vec4(dProd*lightColorDiffuse.x, dProd*lightColorDiffuse.y, dProd*lightColorDiffuse.z, 1.0);
 		        }
 
 		</script>
@@ -85,7 +122,7 @@
 
 			var GuiVarHolder = null;
 
-			var container, stats;
+			var container, stats, map_Container;
 			var camera, scene, renderer;
 			var mesh;
 			var projector;
@@ -94,12 +131,14 @@
 			var text = [];
 			var positionTransformVector;
 			var noiseValues = [];
+			var distortionFromImage = [];
 
 			var x,y;
 
 			var terrainElements = [];
 
 			var keyboardInteraction;
+			var mainTerrrain;
 
 			var simpleLine;
 			var objectSelect = false;
@@ -112,6 +151,7 @@
 			var wasClicked = false;
 			var firstInteraction = false
 			var cameraEnabled = false;
+			var offset = new THREE.Vector3(0,0,1);
 			//
 			var noiseAttributes = {
 				displacement: {
@@ -131,7 +171,7 @@
 			  		type: "v3",
 			  		value: new THREE.Vector3( 0, 1, 1 )
 			  },
-			  	lightColor: {
+			  	lightColorDiffuse: {
 			  		type: "v3",
 			  		value: new THREE.Vector3 (1, 1, 1)
 			  	}
@@ -142,21 +182,35 @@
 			init();
 			animate();
 
+
 			function init() {
 
 				initPerm();
 				container = document.getElementById( 'container' );
+				container.style.position= 'relative';
+
+				/*var ui_canvas = document.getElementById( 'ui_canvas' );
+				
+				ui_canvas.width = window.innerWidth*0.18;
+				ui_canvas.height = window.innerHeight*0.5;
+
+				map_Container = document.getElementById('map_Container');
+				map_Container.style.position = 'relative';
+				map_Container.style.right = (window.innerWidth*0.4) + "px"*/
+
+				//map_Container.style.width = window.innerWidth*0.2;
+
 				keyboardInteraction = new THREEx.KeyboardState();
 
 				sizeOfCamera = 50;
 
-				camera = new THREE.PerspectiveCamera( sizeOfCamera, window.innerWidth / window.innerHeight, 1, 500 );
+				camera = new THREE.PerspectiveCamera( sizeOfCamera, window.innerWidth / window.innerHeight*0.8, 1, 500 );
 				camera.position.z = 100;
 				camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 				scene = new THREE.Scene();
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setSize( window.innerWidth*0.8, window.innerHeight );
 				renderer.setClearColorHex( 0x0f0f0f, 1 );
 
 				projector = new THREE.Projector();
@@ -170,25 +224,111 @@
 				directionalLight.position.set( 0, 1, 0 ).normalize(); 
 				scene.add( directionalLight );
 
+				//container.style.left = (window.innerWidth*0.095) + "px";
 				container.appendChild( renderer.domElement );
 
-				createPlane(new THREE.Vector3(0,-15,0),70,0xffffff,150);
+
+				//createPlane(new THREE.Vector3(0,-15,0),70,0xffffff,150);
 
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
+				//stats.domElement.style.left =  (window.innerWidth*0.1) + "px";
 				container.appendChild( stats.domElement );
 				window.addEventListener( 'resize', onWindowResize, false );
 				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
 				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
 
+
+			}
+
+
+
+			$(function () 
+			{
+    			$(":file").change(function () 
+    			{
+        			if (this.files && this.files[0]) 
+        			{
+           	    		var reader = new FileReader();
+            			reader.onload = imageIsLoaded;
+            			reader.readAsDataURL(this.files[0]);
+        			}
+    			});
+			});
+
+			Caman.Filter.register("example", function (adjust) {
+
+				  // Our process function that will be called for each pixel.
+				  // Note that we pass the name of the filter as the first argument.
+				  this.process("example", function (rgba) {
+				  	var val = 0.21*rgba.r + 0.72*rgba.g  + 0.07*rgba.b;
+				    rgba.r = 255- val;
+				    rgba.g = 255- val;
+				    rgba.b = 255- val;
+				    distortionFromImage.push(val/255);
+
+ 					this.locationXY();
+
+				    // Return the modified RGB values
+				    return rgba;
+				  });
+				});
+
+
+
+
+			function imageIsLoaded(e) 
+			{
+			    $('#myImg').attr('src', e.target.result);
+			    $('#convertedImage').attr('src', e.target.result);
+			   // var caman = Caman("#myImg");
+			    
+			    Caman("#myImg","#myImg", function () {
+
+			    	this.resize({
+					    width: GuiVarHolder.gridCount+1,
+					    height:GuiVarHolder.gridCount+1
+					  });
+			    	this.render();
+
+				});
+
+			    Caman("#convertedImage","#convertedImage", function () {
+
+			    	this.resize({
+					    width: GuiVarHolder.gridCount+1,
+					    height:GuiVarHolder.gridCount+1
+					  }).render();
+			    	this.contrast(5);
+			    	
+			    	this.example();
+			    	this.render();
+			    	
+				});
+			    console.log(distortionFromImage.length);
+
+
+
+			};
+
+			function scaleSize(maxW, maxH, currW, currH){
+			    var ratio = currH / currW;
+			    if(currW >= maxW && ratio <= 1){
+			        currW = maxW;
+			        currH = currW * ratio;
+			    } else if(currH >= maxH){
+			        currH = maxH;
+			        currW = currH / ratio;
+			    }
+			    return [currW, currH];
 			}
 
 			var FizzyText = function() {
 			  this.message = 'dat.gui';
 			  this.cameraEnabled = false;
-			  this.rotationEnabled = false;
+			  this.rotationEnabled = true;
 			  this.keyboardEnabled = false;
 			  this.lightX = 0.02;
 			  this.lightY = 0.02;
@@ -197,13 +337,40 @@
 			  this.lightCR = 1;
 			  this.lightCG = 1;
 			  this.lightCB = 1;
+			  this.color3 = { h: 350, s: 0.9, v: 0.3 };
+
+			  this.mainSize = 70;
+			  this.gridCount = 3;
+
+			  this.noiseParam1 = 0;
+			  this.noiseParam2 = 0;
+
+			  this.noiseParam3 = 45;
 
 			  this.setColor = function()
 			  {
-			  	uniforms.lightColor = new THREE.Vector3(this.lightCR,this.lightCG,this.lightCB);
+			  	console.log("seting color on " + this.lightCR + " " + this.lightCG + " " + this.lightCB);
+			  	uniforms.lightColorDiffuse.value = new THREE.Vector3(this.lightCR,this.lightCG,this.lightCB);
 			  }
-			  //this.explode = function() { ... };
-			  // Define render logic ...
+
+			  this.removePlane = function()
+			  {
+			  	if(terrainElements[terrainElements.length - 1] != null)
+			  		scene.remove(terrainElements[terrainElements.length - 1]);
+			  }
+			  this.createPlane = function()
+			  {
+			  	this.removePlane();
+
+			  	createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,(this.gridCount%2 == 1)?this.gridCount - 1:this.gridCount,true);
+			  }
+			  this.createPlaneFromImage = function()
+			  {
+			  	this.removePlane();
+
+			  	createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,this.gridCount,false);
+			  }
+			  
 			};
 
 			window.onload = function() {
@@ -223,11 +390,37 @@
 			  f2.add(GuiVarHolder, 'lightZ',0,0.06);
 
 			  var f3 = gui.addFolder('MainLight Color');
+			  var f31 = f3.addFolder('Diffuse');
+			  var colorControler1 = f31.add(GuiVarHolder, 'lightCR',0,1);
+			  var colorControler2 = f31.add(GuiVarHolder, 'lightCG',0,1);
+			  var colorControler3 = f31.add(GuiVarHolder, 'lightCB',0,1);
 
-			  f3.add(GuiVarHolder, 'lightCR',0,1);
-			  f3.add(GuiVarHolder, 'lightCG',0,1);
-			  f3.add(GuiVarHolder, 'lightCB',0,1);
+			  colorControler1.onChange(function(value) {
+			  	uniforms.lightColorDiffuse.value = new THREE.Vector3(value,GuiVarHolder.lightCG,GuiVarHolder.lightCB);
+			  });
+			  colorControler2.onChange(function(value) {
+			  	uniforms.lightColorDiffuse.value = new THREE.Vector3(GuiVarHolder.lightCR,value,GuiVarHolder.lightCB);
+			  });
+			  colorControler3.onChange(function(value) {
+			  	uniforms.lightColorDiffuse.value = new THREE.Vector3(GuiVarHolder.lightCR,GuiVarHolder.lightCG,value);
+			  });
+			 // f3.add(GuiVarHolder, 'color3');
 			  f3.add(GuiVarHolder, 'setColor');
+
+			  var f4 = gui.addFolder('TerrainOperations');
+			  	var f5 = f4.addFolder('CreatedPlaneOptions');
+
+			  	f5.add(GuiVarHolder, 'mainSize',2,1000);
+			  	f5.add(GuiVarHolder, 'gridCount',2,300);
+
+			  	f5.add(GuiVarHolder, 'noiseParam1',-1,10);
+			  	f5.add(GuiVarHolder, 'noiseParam2',0,1);
+			  	f5.add(GuiVarHolder, 'noiseParam3',-10,100);
+
+			  f4.add(GuiVarHolder, 'removePlane');
+			  f4.add(GuiVarHolder, 'createPlane');
+			  f4.add(GuiVarHolder, 'createPlaneFromImage');
+
 			 //gui.add(text, 'explode');
 			};
 
@@ -245,9 +438,9 @@
 
 				text.push(text2);
 			}
-			function createPlane(vecPos,size,col,sizeOfSub)
+			function createPlane(vecPos,size,col,sizeOfSub,usePerlin)
 			{
-				var mainGeometry = new THREE.PlaneGeometry( size, size, sizeOfSub,sizeOfSub );
+				var mainGeometry = new THREE.PlaneGeometry( size, size, parseInt(sizeOfSub),parseInt(sizeOfSub));
 			
 				var color, point, face, numberOfSides, vertexIndex;
 				mainGeometry.computeBoundingBox();
@@ -255,27 +448,35 @@
 
 				var faceIndices = [ 'a', 'b', 'c', 'd' ];
 				
-
 				var NoiseObject = PerlinSimplex;
-				NoiseObject.noiseDetail(3,0.5);
+				NoiseObject.noiseDetail(GuiVarHolder.noiseParam1,GuiVarHolder.noiseParam2);
 				var values = noiseAttributes.displacement.value;
 				var valuesColors = noiseAttributes.colors.value;
+
+				console.log(distortionFromImage.length);
 				for ( var i = 0; i < mainGeometry.vertices.length; i++ ) 
 				{
 				    point = mainGeometry.vertices[ i ];
-					var valueNoise = NoiseObject.noise(point.x/size*1,point.y/size*1,0,0);
+				   if(usePerlin)
+						var valueNoise = NoiseObject.noise((point.x + offset.x)/size,(point.y + offset.y)/size ,0,0);
+					else 
+						var valueNoise =  distortionFromImage[i];
 
 				    color = new THREE.Color( 0xffffff );  
 				    color.setRGB( valueNoise, valueNoise, valueNoise );
-					mainGeometry.vertices[ i ] = new THREE.Vector3(point.x,point.y,point.z + valueNoise*45);
+					mainGeometry.vertices[ i ] = new THREE.Vector3(point.x,point.y,point.z + valueNoise*GuiVarHolder.noiseParam3);
 
 				    noiseValues.push(valueNoise);
 				    values.push(valueNoise);
 				    valuesColors.push(color);
+
+
+				    console.log(i + "vertex number  " + valueNoise);
 				}
+				offset.x += point.x;
+				offset.y += point.y;
 
 				var basicDisplacmentMat = getMaterialDis();
-
 
 				for ( var i = 0; i < mainGeometry.faces.length; i++ ) 
 				{
@@ -299,27 +500,28 @@
 				    for(var j =0;j< 3;j++)
 				    {
 				    	if(face.vertexNormals[j] == null)
+				    	{
 							face.vertexNormals[j] = normalVec;
+						}
 						else
 						{
-							face.vertexNormals[j] += normalVec;
-							console.log(face.vertexNormals[j]);
+							face.vertexNormals[j] = new THREE.Vector3(normalVec.x + face.vertexNormals[j].x,normalVec.y + face.vertexNormals[j].y,normalVec.z + face.vertexNormals[j].z);
 						}
-
 						face.vertexNormals[j].normalize();
 
 					}
 
 				}
-				var plane = new THREE.Mesh(mainGeometry, basicDisplacmentMat);
-				plane.position = vecPos; 
-				plane.geometry.materialsNeedUpdate = true;
+				mainTerrrain = new THREE.Mesh(mainGeometry, basicDisplacmentMat);
+				mainTerrrain.position = vecPos; 
+				mainTerrrain.geometry.materialsNeedUpdate = true;
 
-				scene.add( plane );
+				scene.add( mainTerrrain );
 
-				terrainElements.push(plane);	
+				terrainElements.push(mainTerrrain);	
 			}	
 			
+
 			function getMaterialDis()
 			{
 				var mat =  new THREE.ShaderMaterial({
@@ -359,8 +561,11 @@
 
 				if(wasClicked && GuiVarHolder.rotationEnabled)
 				{	
-					terrainElements[0].rotation.x+=divY/sizeOfCamera;
-					terrainElements[0].rotation.y+=divX/sizeOfCamera;
+					if(terrainElements[terrainElements.length-1] != null)
+					{
+						terrainElements[terrainElements.length-1].rotation.x+=divY/sizeOfCamera;
+						terrainElements[terrainElements.length-1].rotation.y+=divX/sizeOfCamera;
+					}
 	
 				}
 				else if(firstInteraction)
