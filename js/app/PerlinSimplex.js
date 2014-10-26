@@ -4,7 +4,8 @@
 // Read Stefan's excellent paper for details on how this code works.
 // octaves and falloff implementation (and passing jslint) by Ron Valstar
 // also implemented Karsten Schmidt's implementation
-if (!this.PerlinSimplex) {
+define(
+function() {
 	var PerlinSimplex = function() {
 
 		var F2 = 0.5*(Math.sqrt(3)-1);
@@ -434,4 +435,6 @@ if (!this.PerlinSimplex) {
 			}
 		};
 	}();
-}
+
+	return PerlinSimplex;
+});

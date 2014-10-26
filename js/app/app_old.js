@@ -1,159 +1,48 @@
-<!DOCTYPE html>
+define( ["three","container"]),
+function(THREE){
 
+	var app = {
 
+			GuiVarHolder : null,
 
-<html lang="en">
-	<head>
-		<title>Terrain Experiments</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<style>
-			body {
-				color: #cccccc;
-				font-family:Monospace;
-				font-size:13px;
-				text-align:center;
+			container, stats, map_Container,
+			camera,
+			scene, 
+			renderer,
+			mesh,
+			projector,
+			mouseVector,
 
-				background-color: #1f1f1f;
-				margin: 0px;
-				overflow: hidden;
-			}
+			text : [],
+			positionTransformVector,
+			noiseValues : [],
+			distortionFromImage : [],
+			normalsMap : [],
 
-			#info {
-				position: absolute;
-				top: 0px; width: 100%;
-				padding: 5px;
-			}
+			x,
+			y,
 
-			a {
+			terrainElements : [],
 
-				color: #0080ff;
-			}
-		</style>
-	</head>
+			keyboardInteraction,
+			mainTerrrain,
 
-	<body>
-
-		<style type="text/css">
-		    div.container {
-		        margin: 15px;   
-		    }
-		    div.left {
-		    	float: left;
-		        background-color:#202020;    
-		    }
-		    div.right {
-		    	float: right;
-		        background-color:#303030;    	
-		    }
-		</style>
-
-
-		
-
-		<div id="main">
-			<div id= "container" class=  "right"> 
-			</div>
-			<div id="map_Container" class=  "left">
-				<input type='file'/>	
-				<div>
-					<img id="myImg" src="#" alt="image"/>
-				</div>
-				<div>
-					<img id="convertedImage" src="#" alt="image" />
-				</div>
-
-			</div>
-		</div>
-		
-		<script src="./three.js/examples/js/Detector.js"></script>
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
-		<script src="./SimplexNoise.js"></script>
-		<script src="./PerlinSimplex.js"></script>
-		<script src="./VertexColorHeight.js"></script>
-		<script src="./THREEx.KeyboardState.js"></script>
-		<script src="./three.js/build/three.min.js"></script>
-		<script src="./three.js/examples/js/libs/stats.min.js"></script>
-		<script src="./three.js/examples/js/libs/tween.min.js"></script>
-		<script type="text/javascript" src="dat.gui.min.js"></script>
-		<script type="text/javascript" src="caman.full.min.js"></script>
-		
-		<!-- Shaders -->
-		<script type="x-shader/x-vertex" id="vertexshader">
-
-			attribute float displacement;
-			attribute vec3 colors;
-			varying lowp vec4 vColor;
-			varying vec3 passNormal;
-		 
-		    void main() {
-		    	passNormal = normalize(normal);
-		        vec3 newPosition = position +  vec3(0,0,displacement*0.0);
-		        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-		        vColor = vec4(colors,1);
-		    }
-
-		</script>
-
-		<script type="x-shader/x-fragment" id="fragmentshader">
-	 		
-			varying lowp vec4 vColor;
-			varying vec3 passNormal;
-			uniform vec3 mainLight;
-			uniform vec3 lightColorDiffuse;
-
-	        void main() {
-	            vec3 light = mainLight;
-				// ensure it's normalized
-				light = normalize(light);
-				float dProd = max(0.0, dot(passNormal, light));
-				//feed into our frag colour
-				gl_FragColor = vec4(dProd*lightColorDiffuse.x, dProd*lightColorDiffuse.y, dProd*lightColorDiffuse.z, 1.0);
-		        }
-
-		</script>
-
-		<!-- End Shaders -->
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
-
-		<script>
-
-			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
-
-			var GuiVarHolder = null;
-
-			var container, stats, map_Container;
-			var camera, scene, renderer;
-			var mesh;
-			var projector;
-			var mouseVector;
-
-			var text = [];
-			var positionTransformVector;
-			var noiseValues = [];
-			var distortionFromImage = [];
-
-			var x,y;
-
-			var terrainElements = [];
-
-			var keyboardInteraction;
-			var mainTerrrain;
-
-			var simpleLine;
-			var objectSelect = false;
-			var selectedObject;
-			var indexPoint = 0;
+			simpleLine,
+			objectSelect : false,
+			selectedObject,
+			indexPoint : 0,
 
 			//Mouse variables
-			var lastX,lastY;
-			var divX,divY;
-			var wasClicked = false;
-			var firstInteraction = false
-			var cameraEnabled = false;
-			var offset = new THREE.Vector3(0,0,1);
+			lastX,
+			lastY,
+			divX,
+			divY,
+			wasClicked : false,
+			firstInteraction : false,
+			cameraEnabled : false,
+			offset : new THREE.Vector3(0,0,1),
 			//
-			var noiseAttributes = {
+			noiseAttributes : {
 				displacement: {
 				    type: 'f', // a float
 				    value: [] // an empty array
@@ -161,8 +50,8 @@
 				colors: { 
 					type: "c", 
 					value: [] }
-			}
-			var uniforms = {
+			},
+			uniforms : {
 				dis: {
 				    type: 'f', // a float
 				    value: 0 
@@ -175,90 +64,45 @@
 			  		type: "v3",
 			  		value: new THREE.Vector3 (1, 1, 1)
 			  	}
-			};
+			},
 
-			var sizeOfCamera;
-			var clock = 0;
-			init();
-			animate();
+			sizeOfCamera,
+		    clock : 0,
 
+			init: function()  {
 
-			function init() {
-
-				initPerm();
+//				initPerm();
 				container = document.getElementById( 'container' );
 				container.style.position= 'relative';
-
-				/*var ui_canvas = document.getElementById( 'ui_canvas' );
-				
-				ui_canvas.width = window.innerWidth*0.18;
-				ui_canvas.height = window.innerHeight*0.5;
-
-				map_Container = document.getElementById('map_Container');
-				map_Container.style.position = 'relative';
-				map_Container.style.right = (window.innerWidth*0.4) + "px"*/
-
-				//map_Container.style.width = window.innerWidth*0.2;
 
 				keyboardInteraction = new THREEx.KeyboardState();
 
 				sizeOfCamera = 50;
 
-				camera = new THREE.PerspectiveCamera( sizeOfCamera, window.innerWidth / window.innerHeight*0.8, 1, 500 );
+				camera = new THREE.PerspectiveCamera( sizeOfCamera, window.innerWidth / window.innerHeight,0.1, 500 );
 				camera.position.z = 100;
 				camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 				scene = new THREE.Scene();
+				//scene.fog = new THREE.Fog( 0xffffff, 0.2, 50000 );
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setSize( window.innerWidth*0.8, window.innerHeight );
-				renderer.setClearColorHex( 0x0f0f0f, 1 );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setClearColorHex( 0x5f5f5f, 1 );
 
 				projector = new THREE.Projector();
 				mouseVector = new THREE.Vector3();
-
-//				createText(100,100,50,10);
 
 				uniforms.mainLight.value = new THREE.Vector3(0.2,1,1);
 
 				var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
 				directionalLight.position.set( 0, 1, 0 ).normalize(); 
+
 				scene.add( directionalLight );
 
-				//container.style.left = (window.innerWidth*0.095) + "px";
+
 				container.appendChild( renderer.domElement );
 
-
-				//createPlane(new THREE.Vector3(0,-15,0),70,0xffffff,150);
-
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				//stats.domElement.style.left =  (window.innerWidth*0.1) + "px";
-				container.appendChild( stats.domElement );
-				window.addEventListener( 'resize', onWindowResize, false );
-				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
-				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
-
-
-			}
-
-
-
-			$(function () 
-			{
-    			$(":file").change(function () 
-    			{
-        			if (this.files && this.files[0]) 
-        			{
-           	    		var reader = new FileReader();
-            			reader.onload = imageIsLoaded;
-            			reader.readAsDataURL(this.files[0]);
-        			}
-    			});
-			});
-
-			Caman.Filter.register("example", function (adjust) {
+				/*Caman.Filter.register("example", function (adjust) {
 
 				  // Our process function that will be called for each pixel.
 				  // Note that we pass the name of the filter as the first argument.
@@ -274,13 +118,44 @@
 				    // Return the modified RGB values
 				    return rgba;
 				  });
-				});
+				}),*/
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				container.appendChild( stats.domElement );
+				window.addEventListener( 'resize', onWindowResize, false );
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+
+
+			},
 
 
 
-
-			function imageIsLoaded(e) 
+			file : function () 
 			{
+    			$(":file").change(function () 
+    			{
+        			if (this.files && this.files[0]) 
+        			{
+           	    		var reader = new FileReader();
+            			reader.onload = imageIsLoaded;
+            			reader.readAsDataURL(this.files[0]);
+        			}
+    			});
+			},
+
+			
+
+
+
+
+			imageIsLoaded : function(e) 
+			{
+				 $('#myImg').attr('src', null);
+				 $('#convertedImage').attr('src', null);
 			    $('#myImg').attr('src', e.target.result);
 			    $('#convertedImage').attr('src', e.target.result);
 			   // var caman = Caman("#myImg");
@@ -294,6 +169,10 @@
 			    	this.render();
 
 				});
+
+			    while(distortionFromImage.length > 0) {
+					distortionFromImage.pop();
+				}
 
 			    Caman("#convertedImage","#convertedImage", function () {
 
@@ -309,11 +188,9 @@
 				});
 			    console.log(distortionFromImage.length);
 
+			},
 
-
-			};
-
-			function scaleSize(maxW, maxH, currW, currH){
+			scaleSize :function(maxW, maxH, currW, currH){
 			    var ratio = currH / currW;
 			    if(currW >= maxW && ratio <= 1){
 			        currW = maxW;
@@ -323,9 +200,9 @@
 			        currW = currH / ratio;
 			    }
 			    return [currW, currH];
-			}
+			},
 
-			var FizzyText = function() {
+			FizzyText :function(){
 			  this.message = 'dat.gui';
 			  this.cameraEnabled = false;
 			  this.rotationEnabled = true;
@@ -371,9 +248,9 @@
 			  	createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,this.gridCount,false);
 			  }
 			  
-			};
+			},
+			initializeGUI : function(){
 
-			window.onload = function() {
 			  GuiVarHolder = new FizzyText();
 			  var gui = new dat.GUI();
 
@@ -422,10 +299,11 @@
 			  f4.add(GuiVarHolder, 'createPlaneFromImage');
 
 			 //gui.add(text, 'explode');
-			};
+			
+			},
 
 
-			function createText(sizeX,sizeY,posX,posY)
+			createText : function(sizeX,sizeY,posX,posY)
 			{
 				var text2 = document.createElement('div');
 				text2.style.position = 'absolute';
@@ -437,9 +315,21 @@
 				document.body.appendChild(text2);
 
 				text.push(text2);
-			}
-			function createPlane(vecPos,size,col,sizeOfSub,usePerlin)
+			},
+			purgeArrays :function()
 			{
+				while(normalsMap.length > 0) {
+					normalsMap.pop();
+				}
+				while(noiseValues.length > 0) {
+					noiseValues.pop();
+				}
+
+			},
+			createPlane :function (vecPos,size,col,sizeOfSub,usePerlin)
+			{
+				purgeArrays();
+
 				var mainGeometry = new THREE.PlaneGeometry( size, size, parseInt(sizeOfSub),parseInt(sizeOfSub));
 			
 				var color, point, face, numberOfSides, vertexIndex;
@@ -447,13 +337,11 @@
 
 
 				var faceIndices = [ 'a', 'b', 'c', 'd' ];
-				
 				var NoiseObject = PerlinSimplex;
 				NoiseObject.noiseDetail(GuiVarHolder.noiseParam1,GuiVarHolder.noiseParam2);
 				var values = noiseAttributes.displacement.value;
 				var valuesColors = noiseAttributes.colors.value;
 
-				console.log(distortionFromImage.length);
 				for ( var i = 0; i < mainGeometry.vertices.length; i++ ) 
 				{
 				    point = mainGeometry.vertices[ i ];
@@ -471,7 +359,7 @@
 				    valuesColors.push(color);
 
 
-				    console.log(i + "vertex number  " + valueNoise);
+				    normalsMap.push(null);
 				}
 				offset.x += point.x;
 				offset.y += point.y;
@@ -482,36 +370,28 @@
 				{
 				    face = mainGeometry.faces[ i ];
 
-				    face.vertexNormals[0] = null;
-				    face.vertexNormals[1] = null;
-				    face.vertexNormals[2] = null;
-				}
-
-
-				for ( var i = 0; i < mainGeometry.faces.length; i++ ) 
-				{
-				    face = mainGeometry.faces[ i ];
-
 				    var normalVec = calculateNormals(
 				    	mainGeometry.vertices[face.a], 
 				    	mainGeometry.vertices[face.b], 
 				    	mainGeometry.vertices[face.c]);	
 
-				    for(var j =0;j< 3;j++)
-				    {
-				    	if(face.vertexNormals[j] == null)
-				    	{
-							face.vertexNormals[j] = normalVec;
-						}
-						else
-						{
-							face.vertexNormals[j] = new THREE.Vector3(normalVec.x + face.vertexNormals[j].x,normalVec.y + face.vertexNormals[j].y,normalVec.z + face.vertexNormals[j].z);
-						}
-						face.vertexNormals[j].normalize();
+				    checkAndAdd(face.a, normalVec);
+				    checkAndAdd(face.b, normalVec);
+				    checkAndAdd(face.c, normalVec);
+				}
 
-					}
+				for ( var i = 0; i < mainGeometry.faces.length; i++ ) 
+				{
+				    face = mainGeometry.faces[ i ];
+
+				    face.vertexNormals[0] = normalsMap[face.a].normalize();
+				    face.vertexNormals[1] = normalsMap[face.b].normalize();
+				    face.vertexNormals[2] = normalsMap[face.c].normalize();
 
 				}
+
+
+
 				mainTerrrain = new THREE.Mesh(mainGeometry, basicDisplacmentMat);
 				mainTerrrain.position = vecPos; 
 				mainTerrrain.geometry.materialsNeedUpdate = true;
@@ -519,31 +399,43 @@
 				scene.add( mainTerrrain );
 
 				terrainElements.push(mainTerrrain);	
-			}	
+			},
 			
 
-			function getMaterialDis()
+			checkAndAdd :function(i , vector)
+			{
+					if( normalsMap[i] == null)
+				    	normalsMap[i] = vector;
+					else
+					{
+						normalsMap[i].value+=vector;
+					}
+			},
+
+
+			getMaterialDis :function ()
 			{
 				var mat =  new THREE.ShaderMaterial({
 					attributes: noiseAttributes,
 					uniforms:       uniforms,
 				    vertexShader: document.getElementById('vertexshader').innerHTML,
-				    fragmentShader: document.getElementById('fragmentshader').innerHTML
+				    fragmentShader: document.getElementById('fragmentshader').innerHTML,
+				   // mat.shading = THREE.
 				});
-				mat.wireframe = false;
+				//mat.wireframe = true;
 				//mat.lights = true;
 				//mat.shading = THREE.FlatShading;
 				return mat;
-			}
-			function getMaterialLamb()
+			},
+			getMaterialLamb :function ()
 			{
 				var mat =  new THREE.MeshPhongMaterial({
         		color: 'white' 
       			});
 				return mat;
-			}
+			},
 
-			function onDocumentMouseDown(event)
+			onDocumentMouseDown: function (event)
 		    {
 				event.preventDefault();
 				wasClicked = true;
@@ -551,8 +443,8 @@
 				lastY = event.clientY;
 				lastX = event.clientX;
 				
-			}
-			function onDocumentMouseMove(event)
+			},
+			onDocumentMouseMove:function (event)
 			{
 				event.preventDefault();
 
@@ -576,9 +468,9 @@
 				lastX = event.clientX;
 
 
-			}
+			},
 
-			function setCameraRotation(divx,divY)
+			setCameraRotation :function (divx,divY)
 			{
 				if(!GuiVarHolder.cameraEnabled)
 					return;
@@ -594,8 +486,8 @@
 
 				positionTransformVector = new THREE.Vector3(x*mulFactor,y*mulFactor,z*mulFactor);
 				positionTransformVector.normalize();
-			}
-			function keyboardInfo()
+			},
+			keyboardInfo:function ()
 			{
 				if(GuiVarHolder!=null &&!GuiVarHolder.keyboardEnabled)
 					return;
@@ -615,16 +507,15 @@
 				{
 					camera.position.z -= 1;
 				}
-			}
+			},
 
-
-			function onDocumentMouseUp(event)
+			onDocumentMouseUp:function (event)
 			{
 				event.preventDefault();
 				wasClicked = false;
-			}
+			},
 			
-			function onWindowResize() 
+			onWindowResize :function () 
 			{
 				windowHalfX = window.innerWidth / 2;
 				windowHalfY = window.innerHeight / 2;
@@ -634,8 +525,8 @@
 				camera.updateProjectionMatrix();
 
 				renderer.setSize( window.innerWidth, window.innerHeight );
-			}
-			function animate()
+			},*/
+			animate:function ()
 			{
 				requestAnimationFrame( animate );
 				if(GuiVarHolder != null)
@@ -649,17 +540,15 @@
 
 				stats.update();
 				render();
-			}
-			function render()
+			},
+			render :function ()
 		    {
 				renderer.render( scene, camera );
 				keyboardInfo();
 				clock+=1;
-			}
+			},
 
-			
-
-			function calculateNormals( a, b, c)
+			calculateNormals :function ( a, b, c)
 			{
 				var ab = new THREE.Vector3(b.x - a.x, b.y - a.y, b.z - a.z);
 				var ac = new THREE.Vector3(c.x - a.x, c.y - a.y, c.z - a.z);
@@ -670,7 +559,6 @@
 
 				return new THREE.Vector3(i,j,k);
 			}
-		</script>
-
-	</body>
-</html>
+	}
+	return app;
+}
