@@ -17,6 +17,7 @@ var require = {
     three: '../lib/three',
     threeCore: '../lib/three.min',
 	dat: '../lib/dat.gui.min',
+	Caman: '../lib/caman.full.min',
     TrackballControls: '../lib/controls/TrackballControls',
     // --- end THREE sub-components
     detector: '../lib/Detector',

@@ -1,7 +1,7 @@
 define( ["three", "camera", "controls", 
 "geometry", "light", "material", "renderer", 
 "scene","dat","PerlinSimplex",
-"shader!ver.vert", "shader!ver.frag"],
+"shader!ver.vert", "shader!ver.frag","Caman"],
 function ( THREE, camera, controls, geometry, 
 light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
   var app = {
@@ -72,7 +72,6 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	
 	initializeGUI : function(){
 	 this.GuiVarHolder = new this.FizzyText();
-			  console.log("ïm here");
 			  var gui = new dat.GUI();
 
 			  var f1 = gui.addFolder('ControlsEnabled');
@@ -125,8 +124,6 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	
     init: function () {
      this.initializeGUI();
-	 console.log("simpleFrag " + simpleFrag.value);
-	 console.log("simpleVert " +simpleVert.value);
 	 
 	 /*app.stats = new Stats();
 				stats.domElement.style.position = 'absolute';
@@ -135,7 +132,38 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	document.addEventListener( 'mousedown', this.onDocumentMouseDown, false );
 	document.addEventListener( 'mousemove', this.onDocumentMouseMove, false );
     document.addEventListener( 'mouseup', this.onDocumentMouseUp, false );
-    },
+    
+	document.getElementById("fileBtn").addEventListener('change',
+	function () 
+    {
+		alert( "Handler for .change() called." );
+        if (this.files && this.files[0]) 
+        	{
+           	    var reader = new FileReader();
+            	reader.onload = app.imageIsLoaded;
+            	reader.readAsDataURL(this.files[0]);
+			}
+    });
+	
+	Caman.Filter.register("example", function (adjust) {
+
+				  // Our process function that will be called for each pixel.
+				  // Note that we pass the name of the filter as the first argument.
+				  this.process("example", function (rgba) {
+				  	var val = 0.21*rgba.r + 0.72*rgba.g  + 0.07*rgba.b;
+				    rgba.r = 255- val;
+				    rgba.g = 255- val;
+				    rgba.b = 255- val;
+				    app.distortionFromImage.push(val/255);
+
+ 					this.locationXY();
+
+				    // Return the modified RGB values
+				    return rgba;
+				  });
+				});
+	
+	},
 	render :function ()
 	{
 				renderer.render( scene, camera );
@@ -202,7 +230,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  {
 			  	this.removePlane();
 
-			  	createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,this.gridCount,false);
+			  	app.createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,this.gridCount,false);
 			  }
 			  
 			},
@@ -252,7 +280,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				   if(usePerlin)
 						var valueNoise = NoiseObject.noise((point.x + this.offset.x)/size,(point.y + this.offset.y)/size ,0,0);
 					else 
-						var valueNoise =  distortionFromImage[i];
+						var valueNoise =  this.distortionFromImage[i];
 
 				    color = new THREE.Color( 0xffffff );  
 				    color.setRGB( valueNoise, valueNoise, valueNoise );
@@ -370,13 +398,14 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				app.positionTransformVector.normalize();
 			},
 			
-			onDocumentMouseDown: function (event)
+			onDocumentMouseDown:function(event)
 		    {
 				event.preventDefault();
-				app.wasClicked = true;
+				this.wasClicked = true;
 				app.firstInteraction = true;
 				app.lastY = event.clientY;
 				app.lastX = event.clientX;
+				
 				
 			},
 			onDocumentMouseMove:function (event)
@@ -385,8 +414,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 
 					app.divX = event.clientX - app.lastX;
 					app.divY = event.clientY - app.lastY;
-
-				if(app.wasClicked && app.GuiVarHolder.rotationEnabled)
+				if(this.wasClicked && app.GuiVarHolder.rotationEnabled)
 				{	
 					if(app.terrainElements[app.terrainElements.length-1] != null)
 					{
@@ -397,11 +425,56 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				}
 				else if(app.firstInteraction)
 				{
-					app.setCameraRotation(divX,divY);
+					app.setCameraRotation(app.divX,app.divY);
 				}
 				app.lastY = event.clientY;
 				app.lastX = event.clientX;
 
+
+			},
+			onDocumentMouseUp:function (event)
+			{
+				event.preventDefault();
+				
+				this.wasClicked = !this.wasClicked;
+				
+			},
+				
+			
+			imageIsLoaded : function(e) 
+			{
+				document.getElementById("myImg").src =  e.target.result;
+			    document.getElementById("convertedImage").src =  e.target.result;
+			    document.getElementById("myImg").src =  e.target.result;
+			    document.getElementById("convertedImage").src =e.target.result;
+			   // var caman = Caman("#myImg");
+			    
+			    Caman("#myImg","#myImg", function () {
+
+			    	this.resize({
+					    width: app.GuiVarHolder.gridCount+1,
+					    height:app.GuiVarHolder.gridCount+1
+					  });
+			    	this.render();
+
+				});
+
+			    while(app.distortionFromImage.length > 0) {
+					app.distortionFromImage.pop();
+				}
+
+			    Caman("#convertedImage","#convertedImage", function () {
+			    	this.resize({
+					    width: app.GuiVarHolder.gridCount+1,
+					    height:app.GuiVarHolder.gridCount+1
+					  }).render();
+			    	this.contrast(5);
+			    	
+			    	this.example();
+			    	this.render();
+			    	
+				});
+			    console.log(app.distortionFromImage.length);
 
 			},
 			 

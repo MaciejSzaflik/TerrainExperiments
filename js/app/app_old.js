@@ -460,10 +460,10 @@ function(THREE){
 					}
 	
 				}
-				else if(firstInteraction)
+				/*else if(firstInteraction)
 				{
 					setCameraRotation(divX,divY);
-				}
+				}*/
 				lastY = event.clientY;
 				lastX = event.clientX;
 

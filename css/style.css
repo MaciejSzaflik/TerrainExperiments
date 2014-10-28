@@ -5,14 +5,14 @@ src: url(../font/Hamburger.ttf);
 }
 /* base styles */
 html {
-font-family: "Hamburger", "Helvetica Neue", Helvetica, Arial, sans-serif;
-font-size: 24px;
+font-family: "Arial", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 10px;
 line-height: 1.2;
 color: #fed;
 text-shadow: black 5px 5px;
 text-align: center;
-background: #113;
-background: linear-gradient(45deg, #113, #101);
+background: #255;
+background: linear-gradient(45deg, #255, #101);
 }
 body {
 margin: 0;
@@ -31,14 +31,14 @@ padding-bottom: 200px;
 /* threejs container styles */
 #example-container {
 background:#111;
-margin: 20px auto;
-padding: 20px;
+margin: 10px auto;
+padding: 10px;
 min-height: 300px;
 }
 #threejs-container {
 position: relative;
 background:#000;
-color: #666;
+color: #101;
 text-align: center;
 padding: 50% 0 0 0;
 height: 0;
