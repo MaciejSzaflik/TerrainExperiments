@@ -1,7 +1,7 @@
 define( ["three", "container"], function ( THREE, container ) {
   
   var sizeOfCamera = 50;
-  var camera = new THREE.PerspectiveCamera( sizeOfCamera, 1, 0.1, 500 );
+  var camera = new THREE.PerspectiveCamera( sizeOfCamera, 1, 0.1, 10000 );
   camera.position.z = 100;
 
   var updateSize = function () {

@@ -1,13 +1,15 @@
 define( ["three", "camera", "controls", 
 "geometry", "light", "material", "renderer", 
 "scene","dat","PerlinSimplex",
-"shader!ver.vert", "shader!ver.frag","Caman"],
+"shader!ver.vert", "shader!ver.frag","Caman","KeyboardState"],
 function ( THREE, camera, controls, geometry, 
 light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
   var app = {
   
 			GuiVarHolder : null,
-
+			imageFildersVar : null,
+			
+			
 			camera,
 			scene, 
 			renderer,
@@ -35,9 +37,15 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			lastY : 0,
 			divX : 0,
 			divY : 0,
+			angleX : 0,
+			angleY : 0,
+			currentForward : new THREE.Vector3(1,0,0),
+			currentUp : new THREE.Vector3(0,0,1),
+			mainForward : new THREE.Vector3(1,0,0),
 			wasClicked : false,
 			firstInteraction : false,
 			cameraEnabled : false,
+			isLocked : false,
 			offset : new THREE.Vector3(0,0,1),
 			//
 			noiseAttributes : {
@@ -61,19 +69,103 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  	lightColorDiffuse: {
 			  		type: "v3",
 			  		value: new THREE.Vector3 (1, 1, 1)
+			  	},
+				ambient: {
+			  		type: "v3",
+			  		value: new THREE.Vector3 (0.2, 0.2, 0.2)
 			  	}
 			},
 
 		    clock : 0,
 			
 			
+			 FizzyText :function(){
+			  this.message = 'dat.gui';
+			  this.cameraEnabled = false;
+			  this.rotationEnabled = true;
+			  this.keyboardEnabled = false;
+			  this.lightX = 0.02;
+			  this.lightY = 0.02;
+			  this.lightZ = 0.02;
+
+			  this.lightCR = 1;
+			  this.lightCG = 1;
+			  this.lightCB = 1;
+			  this.color3 = { h: 350, s: 0.9, v: 0.3 };
+
+			  this.mainSize = 70;
+			  this.gridCount = 200;
+
+			  this.noiseParam1 = 0;
+			  this.noiseParam2 = 0;
+
+			  this.noiseParam3 = 45;
+			  
+			  this.lookAtX = 0;
+			  this.lookAtY = 0;
+			  this.lookAtZ = 1;
+
+			  this.setColor = function()
+			  {
+			  	console.log("seting color on " + this.lightCR + " " + this.lightCG + " " + this.lightCB);
+			  	this.uniforms.lightColorDiffuse.value = new THREE.Vector3(this.lightCR,this.lightCG,this.lightCB);
+			  }
+
+			  this.removePlane = function()
+			  {
+			  	if(app.terrainElements[app.terrainElements.length - 1] != null)
+			  		scene.remove(app.terrainElements[app.terrainElements.length - 1]);
+			  }
+			  this.createPlane = function()
+			  {
+			  	this.removePlane();
+
+			  	app.createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,(this.gridCount%2 == 1)?this.gridCount - 1:this.gridCount,true);
+			  }
+			  this.createPlaneFromImage = function()
+			  {
+			  	this.removePlane();
+
+			  	app.createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,this.gridCount,false);
+			  }
+			  this.tryToLock = function()
+			  {		  
+				app.tryToInitPointLock();
+			  }
+			  
+			},
 			
+			  ImageControls :function(){
+			  this.message = 'dat.gui';
+			  this.invert = false;
+			  this.brightness = 0;
+			  this.contrast = 0;
+			  this.exposure = 0;
+			  this.gamma = 0;
+			  this.stackBlur = 0;
+		  
+			},
 	
 	
 	initializeGUI : function(){
+	
+	 this.imageFildersVar = new this.ImageControls();
+			var guiImg = new dat.GUI();
+			
+			var fol1 =  guiImg.addFolder('BasicFilters');
+			  fol1.add(this.imageFildersVar,'invert');
+			  fol1.add(this.imageFildersVar, 'stackBlur',0,20);
+			  fol1.add(this.imageFildersVar, 'contrast',-100,100);
+			  fol1.add(this.imageFildersVar, 'exposure',-100,100);
+			  fol1.add(this.imageFildersVar, 'gamma',-5,20);
+			  fol1.add(this.imageFildersVar, 'brightness',-100,100);
+			  
 	 this.GuiVarHolder = new this.FizzyText();
 			  var gui = new dat.GUI();
 
+			 
+			  
+			  
 			  var f1 = gui.addFolder('ControlsEnabled');
 
 			  f1.add(this.GuiVarHolder, 'cameraEnabled');
@@ -118,42 +210,63 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  f4.add(this.GuiVarHolder, 'createPlane');
 			  f4.add(this.GuiVarHolder, 'createPlaneFromImage');
 
-			 //gui.add(text, 'explode');
+			 gui.add(this.GuiVarHolder, 'tryToLock');
 			
 			},
 	
     init: function () {
      this.initializeGUI();
+	 this.setUpCubeMap();
 	 
+	 this.keyboardInteraction = new THREEx.KeyboardState();
+	 				
+	this.createText(10,10,10,10);
+	this.createText(10,10,20,10);
+	this.createText(10,10,30,10);
+	this.text[1].innerHTML = this.cameraLookDir(camera).x + " " + this.cameraLookDir(camera).y + " "+ this.cameraLookDir(camera).z ;
+	this.text[2].innerHTML = camera.up.x + " " + camera.up.y  + " "+ camera.up.z;
 	 /*app.stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
 				container.appendChild( stats.domElement );*/
-	document.addEventListener( 'mousedown', this.onDocumentMouseDown, false );
-	document.addEventListener( 'mousemove', this.onDocumentMouseMove, false );
-    document.addEventListener( 'mouseup', this.onDocumentMouseUp, false );
+	//document.addEventListener( 'mousedown', this.onDocumentMouseDown, false );
+	//document.addEventListener( 'mousemove', this.onDocumentMouseMove, false );
+    //document.addEventListener( 'mouseup', this.onDocumentMouseUp, false );
+	
+	document.addEventListener('pointerlockchange', this.changeCallback, false);
+	document.addEventListener('mozpointerlockchange', this.changeCallback, false);
+	document.addEventListener('webkitpointerlockchange', this.changeCallback, false);
+
+	document.addEventListener("mousemove", this.moveCallback, false);
+	
+	
     
 	document.getElementById("fileBtn").addEventListener('change',
-	function () 
-    {
-		alert( "Handler for .change() called." );
-        if (this.files && this.files[0]) 
-        	{
-           	    var reader = new FileReader();
-            	reader.onload = app.imageIsLoaded;
-            	reader.readAsDataURL(this.files[0]);
-			}
-    });
-	
+		function () 
+		{
+			if (this.files && this.files[0]) 
+				{
+					var reader = new FileReader();
+					reader.onload = app.imageIsLoaded;
+					reader.readAsDataURL(this.files[0]);
+				}
+		});
+
 	Caman.Filter.register("example", function (adjust) {
 
 				  // Our process function that will be called for each pixel.
 				  // Note that we pass the name of the filter as the first argument.
 				  this.process("example", function (rgba) {
 				  	var val = 0.21*rgba.r + 0.72*rgba.g  + 0.07*rgba.b;
-				    rgba.r = 255- val;
-				    rgba.g = 255- val;
-				    rgba.b = 255- val;
+						
+					if(app.imageFildersVar.invert) 
+						val = 255- val;
+
+					rgba.r = val;
+					rgba.g = val;
+					rgba.b = val;
+
+					
 				    app.distortionFromImage.push(val/255);
 
  					this.locationXY();
@@ -164,11 +277,178 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				});
 	
 	},
+	changeCallback : function()
+	{
+		
+		app.isLocked = !app.isLocked;
+		if(app.isLocked)
+			app.text[0].innerHTML = "lock";
+		else
+			app.text[0].innerHTML = "unlock";
+	},
+	moveCallback : function(e)
+	{
+		if(app.isLocked)
+		{
+			
+			
+			
+		var movementX = e.movementX ||
+			  e.mozMovementX        ||
+			  e.webkitMovementX     ||
+			  0,
+			movementY = e.movementY ||
+			  e.mozMovementY        ||
+			  e.webkitMovementY     ||
+			  0;
+		
+		
+		app.text[0].innerHTML = "move" + " " + movementX + "  " + movementY;
+		app.calculateCameraRotation(movementX,movementY);
+		}
+		
+		
+	},
+	
+	calculateCameraRotation : function(movementX,movementY)
+	{
+		var x = movementX/app.renderer.domElement.width;
+		var y = movementY/app.renderer.domElement.height;
+				
+				
+		app.angleX -= Math.atan(x)*1.0;
+		app.angleY -= Math.atan(y)*1.0;
+				
+		
+		var frontDirection = new THREE.Vector3(0,0,0)
+		frontDirection.copy(app.cameraLookDir(camera));
+		frontDirection.sub(camera.position);
+		frontDirection.normalize();
+		
+		var quatX = new THREE.Quaternion();
+		var quatY = new THREE.Quaternion();
+		quatX.setFromAxisAngle( new THREE.Vector3(0,1,0), app.angleX);
+		quatY.setFromAxisAngle( new THREE.Vector3(1,0,0), app.angleY);
+		camera.quaternion.multiplyQuaternions(quatX,quatY);
+		
+		
+		
+	},
+	
+	
+	cameraLookDir: function(camera) {
+        var vector = new THREE.Vector3(0, 0, -1);
+        vector.applyEuler(camera.rotation, camera.rotation.order);
+        return vector;
+    },
+	getStrafeDirection: function() {
+		var strafeDirection = new THREE.Vector3();
+		strafeDirection.crossVectors(forwardDirection,camera.up);
+		return strafeDirection
+	},
+	
+	
+	keyboardInfo:function ()
+	{
+		
+		if(app.GuiVarHolder!=null &&!app.GuiVarHolder.keyboardEnabled)
+			return;
+			
+		var forwardDirection = this.cameraLookDir(camera);
+		var strafeDirection = new THREE.Vector3();
+		strafeDirection.crossVectors(forwardDirection,camera.up);
+		this.text[1].innerHTML = strafeDirection.x + " " + strafeDirection.y  + " "+ strafeDirection.z;
+		this.text[2].innerHTML = forwardDirection.x + " " + forwardDirection.y  + " "+ forwardDirection.z;
+		
+		var forwardScale = 0.0;
+		forwardScale += this.keyboardInteraction.pressed("w") ? 1.0 : 0.0;
+		forwardScale -= this.keyboardInteraction.pressed("s") ? 1.0 : 0.0;
+		
+		var strafeScale = 0.0;
+		strafeScale += this.keyboardInteraction.pressed("d") ? 1.0 : 0.0;
+		strafeScale -= this.keyboardInteraction.pressed("a") ? 1.0 : 0.0;
+			 
+		forwardDirection.multiplyScalar(forwardScale);
+		strafeDirection.multiplyScalar(strafeScale);
+		
+		camera.position.add(forwardDirection);
+		camera.position.add(strafeDirection);
+		
+		if(this.keyboardInteraction.pressed("e"))
+			app.calculateCameraRotation(10,0);
+		if(this.keyboardInteraction.pressed("q"))
+			app.calculateCameraRotation(-10,0);
+		if(this.keyboardInteraction.pressed("z"))
+			app.calculateCameraRotation(0,10);
+		if(this.keyboardInteraction.pressed("c"))
+			app.calculateCameraRotation(0,-10);
+		
+	},
+	
+	
+	tryToInitPointLock :function()
+	{
+		var havePointerLock = 'pointerLockElement' in document ||
+		'mozPointerLockElement' in document ||
+		'webkitPointerLockElement' in document;
+		
+		console.log(havePointerLock);
+		
+		if(havePointerLock)
+		{
+			var element = document.getElementById( 'threejs-container' );
+			
+			element.requestPointerLock = element.requestPointerLock ||
+					 element.mozRequestPointerLock ||
+					 element.webkitRequestPointerLock;
+					 
+			element.requestPointerLock();
+			
+			console.log(document.pointerLockElement);
+			if(document.pointerLockElement === element ||
+			  document.mozPointerLockElement === element ||
+			  document.webkitPointerLockElement === element) {
+				console.log('The pointer lock status is now locked');
+			} else {
+				console.log('The pointer lock status is now unlocked');  
+			}
+			
+		}
+	},
+	
+	setUpCubeMap :function()
+	{			
+				var urlPrefix = "js/textures/";
+				var urls = [ urlPrefix + "posx.jpg", urlPrefix + "negx.jpg",
+					urlPrefix + "posy.jpg", urlPrefix + "negy.jpg",
+					urlPrefix + "posz.jpg", urlPrefix + "negz.jpg" ];
+				var textureCube = THREE.ImageUtils.loadTextureCube( urls );
+				console.log(textureCube);
+
+				var cubeShader = THREE.ShaderLib['cube'];
+				cubeShader.uniforms['tCube'].value = textureCube;
+
+				var skyBoxMaterial = new THREE.ShaderMaterial( {
+					fragmentShader: cubeShader.fragmentShader,
+					vertexShader: cubeShader.vertexShader,
+					uniforms: cubeShader.uniforms,
+					depthWrite: false,
+					side: THREE.BackSide
+				});
+				var skyBox = new THREE.Mesh(
+					new THREE.BoxGeometry( 10000, 10000, 10000 ),
+					skyBoxMaterial
+				);
+				skyBox.position = new THREE.Vector3(0,0,0);
+				scene.add( skyBox );
+		},
+
+	
 	render :function ()
 	{
-				renderer.render( scene, camera );
-				//keyboardInfo();
-				app.clock+=1;
+			renderer.render( scene, camera );
+			this.keyboardInfo();
+			app.clock+=1;
 	},
     animate: function () {
       window.requestAnimationFrame( app.animate );
@@ -187,53 +467,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
     },
 	
 	
-			  FizzyText :function(){
-			  this.message = 'dat.gui';
-			  this.cameraEnabled = false;
-			  this.rotationEnabled = true;
-			  this.keyboardEnabled = false;
-			  this.lightX = 0.02;
-			  this.lightY = 0.02;
-			  this.lightZ = 0.02;
-
-			  this.lightCR = 1;
-			  this.lightCG = 1;
-			  this.lightCB = 1;
-			  this.color3 = { h: 350, s: 0.9, v: 0.3 };
-
-			  this.mainSize = 70;
-			  this.gridCount = 3;
-
-			  this.noiseParam1 = 0;
-			  this.noiseParam2 = 0;
-
-			  this.noiseParam3 = 45;
-
-			  this.setColor = function()
-			  {
-			  	console.log("seting color on " + this.lightCR + " " + this.lightCG + " " + this.lightCB);
-			  	this.uniforms.lightColorDiffuse.value = new THREE.Vector3(this.lightCR,this.lightCG,this.lightCB);
-			  }
-
-			  this.removePlane = function()
-			  {
-			  	if(app.terrainElements[app.terrainElements.length - 1] != null)
-			  		scene.remove(app.terrainElements[app.terrainElements.length - 1]);
-			  }
-			  this.createPlane = function()
-			  {
-			  	this.removePlane();
-
-			  	app.createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,(this.gridCount%2 == 1)?this.gridCount - 1:this.gridCount,true);
-			  }
-			  this.createPlaneFromImage = function()
-			  {
-			  	this.removePlane();
-
-			  	app.createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,this.gridCount,false);
-			  }
-			  
-			},
+			 
 			
 			createText : function(sizeX,sizeY,posX,posY)
 			{
@@ -246,7 +480,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				text2.style.left = posY + 'px';
 				document.body.appendChild(text2);
 
-				text.push(text2);
+				app.text.push(text2);
 			},
 			purgeArrays :function()
 			{
@@ -412,23 +646,21 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			{
 				event.preventDefault();
 
-					app.divX = event.clientX - app.lastX;
-					app.divY = event.clientY - app.lastY;
-				if(this.wasClicked && app.GuiVarHolder.rotationEnabled)
-				{	
-					if(app.terrainElements[app.terrainElements.length-1] != null)
-					{
-						app.terrainElements[app.terrainElements.length-1].rotation.x+=app.divY/50;
-						app.terrainElements[app.terrainElements.length-1].rotation.y+=app.divX/50;
-					}
-	
-				}
-				else if(app.firstInteraction)
-				{
-					app.setCameraRotation(app.divX,app.divY);
-				}
+				app.divX = event.clientX - app.lastX;
+				app.divY = event.clientY - app.lastY;
+				
+				var x = event.clientX  /app.renderer.domElement.width;
+				var y = event.clientY /app.renderer.domElement.height;
+				
+				if(x > 1 || y > 1 || y < 0 || x < 0)
+				return;
+				
+				app.angleX = Math.atan((x-0.5))*0.5;
+				app.angleY = Math.atan((y-0.5))*0.5;
+				
 				app.lastY = event.clientY;
 				app.lastX = event.clientX;
+				
 
 
 			},
@@ -439,7 +671,22 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				this.wasClicked = !this.wasClicked;
 				
 			},
+			
+			calculateForward : function()
+			{
+				if(!app.GuiVarHolder.cameraEnabled)
+					return;
+				app.currentForward = new THREE.Vector3(
+					Math.cos(app.angleX)*app.mainForward.x - Math.sin(app.angleX)*app.mainForward.z,
+					0,
+					Math.sin(app.angleX)*app.mainForward.x + Math.cos(app.angleX)*app.mainForward.z
+				);
+				console.log(app.currentForward);
 				
+
+				camera.rotation.y = -app.angleX*(180/Math.PI);
+				camera.rotation.x = -app.angleY*(180/Math.PI)*0.2;
+			},
 			
 			imageIsLoaded : function(e) 
 			{
@@ -468,7 +715,11 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 					    width: app.GuiVarHolder.gridCount+1,
 					    height:app.GuiVarHolder.gridCount+1
 					  }).render();
-			    	this.contrast(5);
+			    	this.contrast(app.imageFildersVar.contrast);
+					this.brightness(app.imageFildersVar.contrast);
+					this.stackBlur(app.imageFildersVar.stackBlur);
+					this.gamma(app.imageFildersVar.gamma);
+					this.exposure(app.imageFildersVar.exposure);
 			    	
 			    	this.example();
 			    	this.render();
