@@ -60,7 +60,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			uniforms : {
 				dis: {
 				    type: 'f', // a float
-				    value: 0 
+				    value: 1
 			  },
 			  	mainLight: {
 			  		type: "v3",
@@ -73,7 +73,8 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				ambient: {
 			  		type: "v3",
 			  		value: new THREE.Vector3 (0.2, 0.2, 0.2)
-			  	}
+			  	},
+				texture: { type: "t", value: THREE.ImageUtils.loadTexture('js/textures/ground.jpg') }
 			},
 
 		    clock : 0,
@@ -83,7 +84,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.message = 'dat.gui';
 			  this.cameraEnabled = false;
 			  this.rotationEnabled = true;
-			  this.keyboardEnabled = false;
+			  this.keyboardEnabled = true;
 			  this.lightX = 0.02;
 			  this.lightY = 0.02;
 			  this.lightZ = 0.02;
@@ -94,7 +95,8 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.color3 = { h: 350, s: 0.9, v: 0.3 };
 
 			  this.mainSize = 70;
-			  this.gridCount = 200;
+			  this.gridCount = 2;
+			  this.tile = 3;
 
 			  this.noiseParam1 = 0;
 			  this.noiseParam2 = 0;
@@ -104,6 +106,8 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.lookAtX = 0;
 			  this.lookAtY = 0;
 			  this.lookAtZ = 1;
+			  
+			  this.rotationX = 90;
 
 			  this.setColor = function()
 			  {
@@ -141,7 +145,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.brightness = 0;
 			  this.contrast = 0;
 			  this.exposure = 0;
-			  this.gamma = 0;
+			  this.gamma = 1;
 			  this.stackBlur = 0;
 		  
 			},
@@ -200,11 +204,12 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  	var f5 = f4.addFolder('CreatedPlaneOptions');
 
 			  	f5.add(this.GuiVarHolder, 'mainSize',2,1000);
-			  	f5.add(this.GuiVarHolder, 'gridCount',2,300);
+			  	f5.add(this.GuiVarHolder, 'gridCount',2,500);
 
 			  	f5.add(this.GuiVarHolder, 'noiseParam1',-1,10);
 			  	f5.add(this.GuiVarHolder, 'noiseParam2',0,1);
 			  	f5.add(this.GuiVarHolder, 'noiseParam3',-10,100);
+				f5.add(this.GuiVarHolder, 'rotationX',0,360);
 
 			  f4.add(this.GuiVarHolder, 'removePlane');
 			  f4.add(this.GuiVarHolder, 'createPlane');
@@ -249,6 +254,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 					var reader = new FileReader();
 					reader.onload = app.imageIsLoaded;
 					reader.readAsDataURL(this.files[0]);
+					console.log(this.files[0]);
 				}
 		});
 
@@ -455,6 +461,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	if(app.GuiVarHolder != null)
 	{
 				app.uniforms.mainLight.value = new THREE.Vector3(Math.cos(app.clock*app.GuiVarHolder.lightX),Math.sin(app.clock*app.GuiVarHolder.lightY),Math.cos(app.clock*app.GuiVarHolder.lightZ));
+				app.uniforms.dis.value = app.GuiVarHolder.noiseParam3;
 	}
 	else
 	{
@@ -490,6 +497,9 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				while(this.noiseValues.length > 0) {
 					this.noiseValues.pop();
 				}
+				while(this.noiseAttributes.displacement.value.length > 0) {
+					this.noiseAttributes.displacement.value.pop();
+				}
 
 			},
 			createPlane :function (vecPos,size,col,sizeOfSub,usePerlin)
@@ -518,12 +528,13 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 
 				    color = new THREE.Color( 0xffffff );  
 				    color.setRGB( valueNoise, valueNoise, valueNoise );
-					mainGeometry.vertices[ i ] = new THREE.Vector3(point.x,point.y,point.z + valueNoise*this.GuiVarHolder.noiseParam3);
+					mainGeometry.vertices[ i ] = new THREE.Vector3(point.x,point.y,point.z + valueNoise*this.GuiVarHolder.noiseParam3 );
+					//this.noiseAttributes.displacement.value.push(valueNoise*this.GuiVarHolder.noiseParam3);
 
 				    this.noiseValues.push(valueNoise);
 				    values.push(valueNoise);
 				    valuesColors.push(color);
-
+					
 
 				    this.normalsMap.push(null);
 				}
@@ -545,7 +556,9 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				    this.checkAndAdd(face.b, normalVec);
 				    this.checkAndAdd(face.c, normalVec);
 				}
-
+				//mainGeometry.faceVertexUvs = [[]];
+				//mainGeometry.faceVertexUvs.push([]);
+				mainGeometry.uvsNeedUpdate = true;
 				for ( var i = 0; i < mainGeometry.faces.length; i++ ) 
 				{
 				    face = mainGeometry.faces[ i ];
@@ -553,16 +566,27 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				    face.vertexNormals[0] = this.normalsMap[face.a].normalize();
 				    face.vertexNormals[1] = this.normalsMap[face.b].normalize();
 				    face.vertexNormals[2] = this.normalsMap[face.c].normalize();
-
+					
+					var alfa = new THREE.Vector2(mainGeometry.vertices[face.a].x/size + 0.5,mainGeometry.vertices[face.a].y/size + 0.5);
+					var beta = new THREE.Vector2(mainGeometry.vertices[face.b].x/size + 0.5,mainGeometry.vertices[face.b].y/size + 0.5);
+					var teta = new THREE.Vector2(mainGeometry.vertices[face.c].x/size + 0.5,mainGeometry.vertices[face.c].y/size + 0.5);
+					
+					
+					mainGeometry.faceVertexUvs[0][i][face.a] = alfa;
+					mainGeometry.faceVertexUvs[0][i][face.a] = beta;
+					mainGeometry.faceVertexUvs[0][i][face.a] = teta;
 				}
-
-
-
 				mainTerrrain = new THREE.Mesh(mainGeometry, basicDisplacmentMat);
 				mainTerrrain.position = vecPos; 
 				mainTerrrain.geometry.materialsNeedUpdate = true;
-
+				
+				var quatX = new THREE.Quaternion();
+				quatX.setFromAxisAngle( new THREE.Vector3(1,0,0), -Math.PI/2);
+				mainTerrrain.quaternion = quatX;
+				
 				this.scene.add( mainTerrrain );
+				
+				
 
 				this.terrainElements.push(mainTerrrain);	
 			},
@@ -690,12 +714,17 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			
 			imageIsLoaded : function(e) 
 			{
-				document.getElementById("myImg").src =  e.target.result;
-			    document.getElementById("convertedImage").src =  e.target.result;
+				var node = document.getElementById("example-container").lastChild;
+				document.getElementById("example-container").appendChild(node);
+			//	document.getElementById("myImg").width = document.getElementById("myImg").width
+			//	document.getElementById("myImg").src =  e.target.result;
+			//    document.getElementById("convertedImage").src =  e.target.result;
 			    document.getElementById("myImg").src =  e.target.result;
-			    document.getElementById("convertedImage").src =e.target.result;
-			   // var caman = Caman("#myImg");
+			    document.getElementById("convertedImage").src =e.target.result;;
 			    
+				console.log(e.target.pathname);
+				app.uniforms.texture.value = THREE.ImageUtils.loadTexture(e.target.result);
+				
 			    Caman("#myImg","#myImg", function () {
 
 			    	this.resize({
