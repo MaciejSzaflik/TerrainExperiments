@@ -35,6 +35,8 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			keyboardInteraction : null,
 			mainTerrrain : null,
 			dOfPlane : 0,
+			loopTime : new Date(),
+			currentTransformsArray : [],
 
 			objectSelect : false,
 			selectedObject : null,
@@ -103,11 +105,11 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.color3 = { h: 350, s: 0.9, v: 0.3 };
 
 			  this.mainSize = 70;
-			  this.gridCount = 8;
+			  this.gridCount = 60;
 			  this.tile = 3;
 
-			  this.noiseParam1 = 0;
-			  this.noiseParam2 = 0;
+			  this.noiseParam1 = 6;
+			  this.noiseParam2 = 0.5;
 
 			  this.noiseParam3 = 45;
 			  
@@ -156,17 +158,96 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.gamma = 1;
 			  this.stackBlur = 0;
 			  this.vertIndex = 0;
-			  this.move = false;
+			  this.markIndex = 0;
+			  this.timeOfTransform = 3;
 			  
 			  this.AddMarker = function()
 			  {
 			    var pos = app.createSphere(this.vertIndex,-30,1);
 				app.raycastTerrain(pos);	
 			  }
+			  this.MoveTransformProt = function(){
+				this.object;
+				this.startPosition;
+				this.endPosition;
+				this.time =0;
+				this.currentStep = 0;
+				this.end = false;
+				this.curX;
+				this.curZ;
+				this.id;
+				this.onTransformationFinish;
+				this.setEndPoint = function()
+				{
+					this.startPosition = this.object.position;
+					this.curX = this.endPosition.x - this.object.position.x;
+					this.curZ = this.endPosition.z - this.object.position.z;
+					this.time = 1/this.time;
+					
+				}
+				this.doTransform = function(fp){	
+					this.currentStep+= this.time/fp;
+						if(!this.end && this.currentStep <= 1.001)
+						{
+							var posX = this.startPosition.x + this.currentStep*this.curX;
+							var posZ = this.startPosition.z + this.currentStep*this.curZ;
+							var posY = app.getHeightPoint(new THREE.Vector3(posX,0,posZ));
+							this.object.position = new THREE.Vector3(
+								posX,
+								posY.y - 14,
+								posZ);
+						}
+						else
+						{
+							this.onTransformationFinish();
+							this.end = true;
+						}
+					}
+				},
+			  
+			  this.MoveTo = function()
+			  {
+				var pos = app.terrainElements[0].geometry.vertices[this.vertIndex];
+				var transform = new this.MoveTransformProt();
+				transform.endPosition = pos;
+				transform.time = this.timeOfTransform;
+				transform.object = app.markerMesh[this.markIndex];
+				transform.id = this.markIndex;
+				transform.setEndPoint();
+				transform.onTransformationFinish = function()
+				{
+					console.log("transFromEnd2");
+				}
 
-		  
+				app.currentTransformsArray.push(transform);
+			  }
+			  this.CrazyMode = function(indexVal)
+			  {
+					var pos = app.terrainElements[0].geometry.vertices[app.randomIntFromInterval(0,app.terrainElements[0].geometry.vertices.length)];
+					var transform = new this.MoveTransformProt();
+					transform.endPosition = pos;		
+					if(indexVal == null)
+						indexVal = this.markIndex;
+					transform.object = app.markerMesh[indexVal];				
+					var dist = transform.object.position.distanceTo(pos);
+					transform.time = dist/10;
+					console.log(dist);
+					transform.id = indexVal;
+					transform.setEndPoint();
+					transform.onTransformationFinish = function()
+					{
+						app.imageFildersVar.CrazyMode(transform.id);
+					}
+					app.currentTransformsArray.push(transform);
+					
+			  }
+			   
 			},
-	
+			randomIntFromInterval : function(min,max)
+			{
+				return Math.floor(Math.random()*(max-min+1)+min);
+			},
+
 	
 	initializeGUI : function(){
 	
@@ -183,8 +264,11 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			
 			var fol2 = guiImg.addFolder('Marker');
 			  fol2.add(this.imageFildersVar,'vertIndex');
+			  fol2.add(this.imageFildersVar,'markIndex');
 			  fol2.add(this.imageFildersVar,'AddMarker');
-			  fol2.add(this.imageFildersVar,'move');
+			  fol2.add(this.imageFildersVar,'MoveTo');
+			  fol2.add(this.imageFildersVar,'CrazyMode');
+			  fol2.add(this.imageFildersVar,'timeOfTransform');
 			  
 	 this.GuiVarHolder = new this.FizzyText();
 			  var gui = new dat.GUI();  
@@ -246,10 +330,12 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	this.createText(10,10,20,10);
 	this.createText(10,10,30,10);
 	this.createText(10,10,40,10);
+	this.createText(10,10,50,10);
 	this.text[1].innerHTML = this.cameraLookDir(camera).x + " " + this.cameraLookDir(camera).y + " "+ this.cameraLookDir(camera).z ;
 	this.text[2].innerHTML = camera.up.x + " " + camera.up.y  + " "+ camera.up.z;
 	this.text[3].innerHTML = "hejo";
-	 /*app.stats = new Stats();
+	this.text[4].innerHTML = "fps";
+	/*app.stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
 				container.appendChild( stats.domElement );*/
@@ -460,9 +546,19 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			this.keyboardInfo();
 			app.clock+=1;
 	},
+	
+	
+	
+	
     animate: function () {
 	
-      window.requestAnimationFrame( app.animate );
+	
+		var thisLoop = new Date;
+		var fps = 1000 / (thisLoop - app.loopTime);
+		app.loopTime = thisLoop;
+		app.text[4].innerHTML = fps + "";
+		
+		window.requestAnimationFrame( app.animate );
 		if(app.GuiVarHolder != null)
 		{
 					app.uniforms.mainLight.value = new THREE.Vector3(Math.cos(app.clock*app.GuiVarHolder.lightX),Math.sin(app.clock*app.GuiVarHolder.lightY),Math.cos(app.clock*app.GuiVarHolder.lightZ));
@@ -472,13 +568,20 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 		{
 			app.uniforms.mainLight.value = new THREE.Vector3(1,1,1);
 		}
-		if(app.imageFildersVar.move)
-		{
-			app.moveTransform(app.markerMesh[0], new THREE.Vector3(0.02,0,-0.1));
-			
-		}
 
-				//this.stats.update();
+		for(var i =0;i<app.currentTransformsArray.length;i++)
+		{
+			app.currentTransformsArray[i].doTransform(fps);
+			if(app.currentTransformsArray[i].end == true)
+			{
+				//if(app.currentTransformsArray[i].onTransformationFinish!=null)
+				//	app.currentTransformsArray.onTransformationFinish();
+				app.currentTransformsArray.splice(i,1);
+	
+			}
+		}
+			
+		//this.stats.update();
 
 		app.render();
     },		
@@ -503,7 +606,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				 this.markerObjects.push({key : this.markerIterator, object : sphere , vertexIndex : i});
 				 sphere.position = new THREE.Vector3(
 					app.terrainElements[0].geometry.vertices[i].x,
-					app.terrainElements[0].geometry.vertices[i].y,
+					app.terrainElements[0].geometry.vertices[i].y - 14,
 					app.terrainElements[0].geometry.vertices[i].z);		
 				 this.markerMesh.push(sphere);
 				 this.markerIterator+=1; 
@@ -516,14 +619,14 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			},
 			raycastTerrain : function(pos)
 			{
-			    var point = new THREE.Vector3(pos.x,this.getHeightPoint(pos).y,pos.z);
+			    var point = new THREE.Vector3(pos.x,this.getHeightPoint(pos).y - 14,pos.z);
 				this.createLine(pos, point );
 			},
 			
 			moveTransform : function(object,vec)
 			{
 				object.position.add(vec);
-				object.position.y = this.getHeightPoint(object.position).y + 15;
+				object.position.y = this.getHeightPoint(object.position).y;
 				this.raycastTerrain(object.position);
 			},
 			
@@ -544,7 +647,6 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			{
 				var rowX = (pos.x - this.createdPlanePosition.x + this.halfOfTheSizeOfPlane)/this.stepSizeX;
 				var rowY =  Math.floor(app.GuiVarHolder.gridCount) - (pos.z - this.createdPlanePosition.z + this.halfOfTheSizeOfPlane)/this.stepSizeY ;
-				console.log(this.frac(rowX) + " " + this.frac(rowY));
 				var isBottomTris = (this.frac(rowY) <=  1 - this.frac(rowX)) ? 0 : 1;
 				rowX = Math.floor( rowX);
 				rowY = Math.floor( rowY);
@@ -568,7 +670,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 							
 				pointOfCrossing = -pointOfCrossing/normal.y;
 				
-				return new THREE.Vector3(pos.x,pointOfCrossing -15,pos.z);
+				return new THREE.Vector3(pos.x,pointOfCrossing,pos.z);
 
 			},
 			
