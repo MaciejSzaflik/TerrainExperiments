@@ -3,6 +3,7 @@ define( ["three", "container"], function ( THREE, container ) {
   var renderer = new THREE.WebGLRenderer( { clearColor: 0x000000 } );
   renderer.sortObjects = false;
   renderer.autoClear = false;
+  //renderer.setFaceCulling(false,"cw");
   container.appendChild( renderer.domElement );
 
   var updateSize = function () {
