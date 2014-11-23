@@ -24,6 +24,8 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			markerIterator : 0,
 			halfOfTheSizeOfPlane : 0,
 			sizeOfPlane : 0,
+			mouseVector : new THREE.Vector3(0,0,0),
+			projector : null,
 
 			x : 0,
 			y : 0,
@@ -90,6 +92,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 		    clock : 0,
 			
 			
+			
 			 FizzyText :function(){
 			  this.message = 'dat.gui';
 			  this.cameraEnabled = false;
@@ -133,13 +136,13 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  {
 			  	this.removePlane();
 
-			  	app.createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,(this.gridCount%2 == 1)?this.gridCount - 1:this.gridCount,true);
+			  	app.createPlane(new THREE.Vector3(0,0,0),this.mainSize,0xffffff,(this.gridCount%2 == 1)?this.gridCount - 1:this.gridCount,true);
 			  }
 			  this.createPlaneFromImage = function()
 			  {
 			  	this.removePlane();
 
-			  	app.createPlane(new THREE.Vector3(0,-15,0),this.mainSize,0xffffff,this.gridCount,false);
+			  	app.createPlane(new THREE.Vector3(0,0,0),this.mainSize,0xffffff,this.gridCount,false);
 			  }
 			  this.tryToLock = function()
 			  {		  
@@ -159,6 +162,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.stackBlur = 0;
 			  this.vertIndex = 0;
 			  this.markIndex = 0;
+			  this.numberOfObjectForTest = 20;
 			  this.timeOfTransform = 3;
 			  
 			  this.AddMarker = function()
@@ -194,7 +198,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 							var posY = app.getHeightPoint(new THREE.Vector3(posX,0,posZ));
 							this.object.position = new THREE.Vector3(
 								posX,
-								posY.y - 14,
+								posY.y + 1,
 								posZ);
 						}
 						else
@@ -231,15 +235,21 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 					transform.object = app.markerMesh[indexVal];				
 					var dist = transform.object.position.distanceTo(pos);
 					transform.time = dist/10;
-					console.log(dist);
 					transform.id = indexVal;
 					transform.setEndPoint();
 					transform.onTransformationFinish = function()
 					{
 						app.imageFildersVar.CrazyMode(transform.id);
 					}
-					app.currentTransformsArray.push(transform);
-					
+					app.currentTransformsArray.push(transform);		
+			  }
+			  this.TestMovement = function()
+			  {
+				for(var i =0; i<this.numberOfObjectForTest;i++)
+				{
+					app.createSphere(0,-30,1);
+					this.CrazyMode(i);
+				}			
 			  }
 			   
 			},
@@ -268,14 +278,12 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  fol2.add(this.imageFildersVar,'AddMarker');
 			  fol2.add(this.imageFildersVar,'MoveTo');
 			  fol2.add(this.imageFildersVar,'CrazyMode');
+			  fol2.add(this.imageFildersVar,'TestMovement');
+			  fol2.add(this.imageFildersVar,'numberOfObjectForTest');
 			  fol2.add(this.imageFildersVar,'timeOfTransform');
 			  
 	 this.GuiVarHolder = new this.FizzyText();
 			  var gui = new dat.GUI();  
-			  var f1 = gui.addFolder('ControlsEnabled');
-
-			  f1.add(this.GuiVarHolder, 'rotationEnabled');
-			  f1.add(this.GuiVarHolder, 'keyboardEnabled');
 
 			  var f2 = gui.addFolder('MainLight');
 
@@ -289,14 +297,14 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  var colorControler2 = f31.add(this.GuiVarHolder, 'lightCG',0,1);
 			  var colorControler3 = f31.add(this.GuiVarHolder, 'lightCB',0,1);
 
-			  colorControler1.onChange(function(value) {
-			  	uniforms.lightColorDiffuse.value = new THREE.Vector3(value,this.GuiVarHolder.lightCG,this.GuiVarHolder.lightCB);
+    		  colorControler1.onChange(function(value) {
+			  	app.uniforms.lightColorDiffuse.value = new THREE.Vector3(app.GuiVarHolder.lightCG,app.GuiVarHolder.lightCB);
 			  });
 			  colorControler2.onChange(function(value) {
-			  	uniforms.lightColorDiffuse.value = new THREE.Vector3(this.GuiVarHolder.lightCR,value,this.GuiVarHolder.lightCB);
+			  	app.uniforms.lightColorDiffuse.value = new THREE.Vector3(app.GuiVarHolder.lightCR,value,app.GuiVarHolder.lightCB);
 			  });
 			  colorControler3.onChange(function(value) {
-			  	uniforms.lightColorDiffuse.value = new THREE.Vector3(this.GuiVarHolder.lightCR,this.GuiVarHolder.lightCG,value);
+			  	app.uniforms.lightColorDiffuse.value = new THREE.Vector3(app.GuiVarHolder.lightCR,app.GuiVarHolder.lightCG,value);
 			  });
 			 // f3.add(GuiVarHolder, 'color3');
 			  f3.add(this.GuiVarHolder, 'setColor');
@@ -331,6 +339,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	this.createText(10,10,30,10);
 	this.createText(10,10,40,10);
 	this.createText(10,10,50,10);
+	this.createText(10,10,60,10);
 	this.text[1].innerHTML = this.cameraLookDir(camera).x + " " + this.cameraLookDir(camera).y + " "+ this.cameraLookDir(camera).z ;
 	this.text[2].innerHTML = camera.up.x + " " + camera.up.y  + " "+ camera.up.z;
 	this.text[3].innerHTML = "hejo";
@@ -348,7 +357,9 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	document.addEventListener('webkitpointerlockchange', this.changeCallback, false);
 
 	document.addEventListener("mousemove", this.moveCallback, false);
-	
+	document.addEventListener('mousedown', this.selectCall, false );
+	document.addEventListener('mouseup', this.selectCall, false );
+	projector = new THREE.Projector();
 	
     
 	document.getElementById("fileBtn").addEventListener('change',
@@ -358,6 +369,17 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				{
 					var reader = new FileReader();
 					reader.onload = app.imageIsLoaded;
+					reader.readAsDataURL(this.files[0]);
+				}
+		});
+		
+	document.getElementById("textureBtn").addEventListener('change',
+		function () 
+		{
+			if (this.files && this.files[0]) 
+				{
+					var reader = new FileReader();
+					reader.onload = app.textureIsLoaded;
 					reader.readAsDataURL(this.files[0]);
 				}
 		});
@@ -400,9 +422,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	{
 		if(app.isLocked)
 		{
-			
-			
-			
+
 		var movementX = e.movementX ||
 			  e.mozMovementX        ||
 			  e.webkitMovementX     ||
@@ -415,10 +435,12 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 		
 		app.text[0].innerHTML = "move" + " " + movementX + "  " + movementY;
 		app.calculateCameraRotation(movementX,movementY);
-		}
-		
-		
+		}	
 	},	
+	selectCall : function(e)
+	{
+		app.rayCastMarkers(e);
+	},
 	calculateCameraRotation : function(movementX,movementY)
 	{
 		var x = movementX/app.renderer.domElement.width;
@@ -538,6 +560,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 					skyBoxMaterial
 				);
 				skyBox.position = new THREE.Vector3(0,0,0);
+				skyBox.name = "Skybox";
 				scene.add( skyBox );
 		},	
 	render :function ()
@@ -547,16 +570,13 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			app.clock+=1;
 	},
 	
-	
-	
-	
     animate: function () {
 	
 	
 		var thisLoop = new Date;
 		var fps = 1000 / (thisLoop - app.loopTime);
 		app.loopTime = thisLoop;
-		app.text[4].innerHTML = fps + "";
+		app.text[4].innerHTML = fps.toFixed(2) + "";
 		
 		window.requestAnimationFrame( app.animate );
 		if(app.GuiVarHolder != null)
@@ -599,6 +619,23 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 
 				app.text.push(text2);
 			},
+			
+			AddTransform : function(pos,markIndex,timeOfTransform)
+			{
+				var transform = new this.imageFildersVar.MoveTransformProt();
+					transform.endPosition = pos;
+					transform.time = timeOfTransform;
+					transform.object = app.markerMesh[markIndex];
+					transform.id = markIndex;
+					transform.setEndPoint();
+					transform.onTransformationFinish = function()
+					{
+						console.log("transFromEnd2");
+					}
+
+					app.currentTransformsArray.push(transform);
+			},
+			
 			createSphere : function(i,posZ,size)
 			{
 				 var sphere = new THREE.Mesh(new THREE.SphereGeometry(size, 4, 2), new THREE.MeshNormalMaterial());
@@ -606,12 +643,11 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				 this.markerObjects.push({key : this.markerIterator, object : sphere , vertexIndex : i});
 				 sphere.position = new THREE.Vector3(
 					app.terrainElements[0].geometry.vertices[i].x,
-					app.terrainElements[0].geometry.vertices[i].y - 14,
-					app.terrainElements[0].geometry.vertices[i].z);		
-				 this.markerMesh.push(sphere);
-				 this.markerIterator+=1; 
-				sphere.name = " marker";
-				 scene.add(sphere);	
+					app.terrainElements[0].geometry.vertices[i].y + 1,
+					app.terrainElements[0].geometry.vertices[i].z);	 
+				sphere.name = " marker_" + this.markerIterator++;
+				scene.add(sphere);	
+				this.markerMesh.push(sphere);
 				
 				return sphere.position;
 		 			 
@@ -619,7 +655,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			},
 			raycastTerrain : function(pos)
 			{
-			    var point = new THREE.Vector3(pos.x,this.getHeightPoint(pos).y - 14,pos.z);
+			    var point = new THREE.Vector3(pos.x,this.getHeightPoint(pos).y + 1,pos.z);
 				this.createLine(pos, point );
 			},
 			
@@ -786,9 +822,9 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				
 
 				this.terrainElements.push(mainTerrrain);	
-			},
+			},	
 			
-
+			
 			checkAndAdd :function(i , vector)
 			{
 					if( this.normalsMap[i] == null)
@@ -807,6 +843,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				    vertexShader: simpleVert.value,
 				    fragmentShader: simpleFrag.value,
 					side: THREE.BackSide
+					
 				});
 				return mat;
 			},
@@ -851,14 +888,58 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				app.positionTransformVector.normalize();
 			},
 			
-			onDocumentMouseDown:function(event)
+			rayCastMarkers :function(event)
 		    {
 				event.preventDefault();
-				this.wasClicked = true;
-				app.firstInteraction = true;
-				app.lastY = event.clientY;
-				app.lastX = event.clientX;
+				app.mouseVector.x = 2 * (event.clientX / window.innerWidth) - 1;
+				app.mouseVector.y = 1 - 2 * ( event.clientY /  window.innerHeight );
+				app.mouseVector.z =1;
 				
+				projector.unprojectVector(app.mouseVector, camera);
+			
+				var raycaster = new THREE.Raycaster(camera.position,app.mouseVector.sub(camera.position).normalize());
+				var intersects = raycaster.intersectObjects(scene.children,true);
+				
+				if (intersects.length > 0) 
+				{	
+					if(intersects[ 0 ].object.name == "Skybox")
+						return -1;
+					
+
+					console.log(intersects[ 0 ].object.name);
+				
+					app.text[5].innerHTML = intersects[ 0 ].object.name;
+					if(intersects[ 0 ].object.name.indexOf("marker")!=-1)
+					{
+						this.selectedObject = intersects[ 0 ].object;
+						this.objectSelect = true;
+						var indexOfMarker = parseInt(this.selectedObject.name.split("_")[1]);
+						
+						for(var i = 0;i<this.currentTransformsArray.length;i++)
+						{
+							if(this.currentTransformsArray[i].id  == indexOfMarker)
+							{
+								this.currentTransformsArray.splice(i,1);
+							}
+						}
+					
+						//this.AddTransform(intersects[ 0 ].face.centroid,0,2);
+					}
+					else if(this.objectSelect)
+					{
+						this.objectSelect = false;
+						var indexOfMarker = parseInt(this.selectedObject.name.split("_")[1]);
+						var point = new THREE.Vector3(intersects[ 0 ].face.centroid.x,0,intersects[ 0 ].face.centroid.y);
+						
+						
+						
+						
+						this.AddTransform(point,indexOfMarker,2);
+						
+						
+						
+					}
+				}	
 				
 			},
 			onDocumentMouseMove:function (event)
@@ -905,6 +986,10 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				camera.rotation.x = -app.angleY*(180/Math.PI)*0.2;
 			},
 			
+			textureIsLoaded : function(e) 
+			{
+				app.uniforms.texture.value = THREE.ImageUtils.loadTexture(e.target.result);
+			},
 			imageIsLoaded : function(e) 
 			{
 				var node = document.getElementById("example-container").lastChild;
