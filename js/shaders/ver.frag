@@ -8,11 +8,15 @@ uniform sampler2D texture;
 
 void main() {
 	            vec3 light = mainLight;
-				// ensure it's normalized
 				light = normalize(light);
 				float dProd = max(0.0, dot(passNormal, light));
-				//feed into our frag colour
-				vec4 lightColor = vec4(dProd*lightColorDiffuse.x + ambient.x, dProd*lightColorDiffuse.y + ambient.y, dProd*lightColorDiffuse.z+ + ambient.z, 1.0);	
-				//gl_FragColor = lightColor;
+				vec4 lightColor = vec4(dProd*lightColorDiffuse.x + ambient.x, 
+									   dProd*lightColorDiffuse.y + ambient.y,
+									   dProd*lightColorDiffuse.z+ + ambient.z, 
+									   1.0);	
 				gl_FragColor = lightColor*texture2D(texture, vUv);
 }
+
+
+
+

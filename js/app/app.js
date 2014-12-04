@@ -50,7 +50,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			divX : 0,
 			divY : 0,
 			angleX : 0,
-			angleY : 0,
+			angleY : -Math.PI*0.1,
 			currentForward : new THREE.Vector3(1,0,0),
 			currentUp : new THREE.Vector3(0,0,1),
 			mainForward : new THREE.Vector3(1,0,0),
@@ -225,7 +225,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 
 				app.currentTransformsArray.push(transform);
 			  }
-			  this.CrazyMode = function(indexVal)
+			  this.RandomizedMovement = function(indexVal)
 			  {
 					var pos = app.terrainElements[0].geometry.vertices[app.randomIntFromInterval(0,app.terrainElements[0].geometry.vertices.length)];
 					var transform = new this.MoveTransformProt();
@@ -239,7 +239,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 					transform.setEndPoint();
 					transform.onTransformationFinish = function()
 					{
-						app.imageFildersVar.CrazyMode(transform.id);
+						app.imageFildersVar.RandomizedMovement(transform.id);
 					}
 					app.currentTransformsArray.push(transform);		
 			  }
@@ -248,7 +248,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				for(var i =0; i<this.numberOfObjectForTest;i++)
 				{
 					app.createSphere(0,-30,1);
-					this.CrazyMode(i);
+					this.RandomizedMovement(i);
 				}			
 			  }
 			   
@@ -277,7 +277,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  fol2.add(this.imageFildersVar,'markIndex');
 			  fol2.add(this.imageFildersVar,'AddMarker');
 			  fol2.add(this.imageFildersVar,'MoveTo');
-			  fol2.add(this.imageFildersVar,'CrazyMode');
+			  fol2.add(this.imageFildersVar,'RandomizedMovement');
 			  fol2.add(this.imageFildersVar,'TestMovement');
 			  fol2.add(this.imageFildersVar,'numberOfObjectForTest');
 			  fol2.add(this.imageFildersVar,'timeOfTransform');
@@ -328,6 +328,10 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			
 			},
 	
+	getFile : function (){
+        
+    },
+	
     init: function () {
      this.initializeGUI();
 	 this.setUpCubeMap();
@@ -342,8 +346,8 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	this.createText(10,10,60,10);
 	this.text[1].innerHTML = this.cameraLookDir(camera).x + " " + this.cameraLookDir(camera).y + " "+ this.cameraLookDir(camera).z ;
 	this.text[2].innerHTML = camera.up.x + " " + camera.up.y  + " "+ camera.up.z;
-	this.text[3].innerHTML = "hejo";
-	this.text[4].innerHTML = "fps";
+	this.text[3].innerHTML = "";
+	this.text[4].innerHTML = "fps: ";
 	/*app.stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
@@ -357,11 +361,13 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	document.addEventListener('webkitpointerlockchange', this.changeCallback, false);
 
 	document.addEventListener("mousemove", this.moveCallback, false);
-	document.addEventListener('mousedown', this.selectCall, false );
-	document.addEventListener('mouseup', this.selectCall, false );
-	projector = new THREE.Projector();
+	//document.addEventListener('mousedown', this.selectCall, false );
+	//document.addEventListener('mouseup', this.selectCall, false );
+	document.getElementById('threejs-container').addEventListener("click", this.selectCall);
 	
+	projector = new THREE.Projector();
     
+
 	document.getElementById("fileBtn").addEventListener('change',
 		function () 
 		{
@@ -444,13 +450,11 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	calculateCameraRotation : function(movementX,movementY)
 	{
 		var x = movementX/app.renderer.domElement.width;
-		var y = movementY/app.renderer.domElement.height;
-				
+		var y = movementY/app.renderer.domElement.height;	
 				
 		app.angleX -= Math.atan(x)*1.0;
 		app.angleY -= Math.atan(y)*1.0;
 				
-		
 		var frontDirection = new THREE.Vector3(0,0,0)
 		frontDirection.copy(app.cameraLookDir(camera));
 		frontDirection.sub(camera.position);
@@ -461,8 +465,6 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 		quatX.setFromAxisAngle( new THREE.Vector3(0,1,0), app.angleX);
 		quatY.setFromAxisAngle( new THREE.Vector3(1,0,0), app.angleY);
 		camera.quaternion.multiplyQuaternions(quatX,quatY);
-		
-		
 		
 	},	
 	cameraLookDir: function(camera) {
@@ -500,7 +502,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 		
 		camera.position.add(forwardDirection);
 		camera.position.add(strafeDirection);
-		
+
 		if(this.keyboardInteraction.pressed("e"))
 			app.calculateCameraRotation(10,0);
 		if(this.keyboardInteraction.pressed("q"))
@@ -576,7 +578,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 		var thisLoop = new Date;
 		var fps = 1000 / (thisLoop - app.loopTime);
 		app.loopTime = thisLoop;
-		app.text[4].innerHTML = fps.toFixed(2) + "";
+		app.text[4].innerHTML = "FPS: " + fps.toFixed(2) + "";
 		
 		window.requestAnimationFrame( app.animate );
 		if(app.GuiVarHolder != null)
