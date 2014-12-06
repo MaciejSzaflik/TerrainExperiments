@@ -84,7 +84,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  	},
 				ambient: {
 			  		type: "v3",
-			  		value: new THREE.Vector3 (0.2, 0.2, 0.2)
+			  		value: new THREE.Vector3 (1.0, 0.0, 0.0)
 			  	},
 				texture: { type: "t", value: THREE.ImageUtils.loadTexture('js/textures/ground.jpg') }
 			},
@@ -101,6 +101,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  this.lightX = 0.02;
 			  this.lightY = 0.02;
 			  this.lightZ = 0.02;
+			  this.wireframe = false;
 
 			  this.lightCR = 1;
 			  this.lightCG = 1;
@@ -284,7 +285,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  
 	 this.GuiVarHolder = new this.FizzyText();
 			  var gui = new dat.GUI();  
-
+			  gui.add(this.GuiVarHolder, 'wireframe');
 			  var f2 = gui.addFolder('MainLight');
 
 			  f2.add(this.GuiVarHolder, 'lightX',0,0.06);
@@ -563,7 +564,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				);
 				skyBox.position = new THREE.Vector3(0,0,0);
 				skyBox.name = "Skybox";
-				scene.add( skyBox );
+				//scene.add( skyBox );
 		},	
 	render :function ()
 	{
@@ -735,8 +736,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				var mainGeometry = new THREE.PlaneGeometry( size, size, parseInt(sizeOfSub),parseInt(sizeOfSub));
 			
 				var color, point, face, numberOfSides, vertexIndex;
-				mainGeometry.computeBoundingBox();
-
+				
 
 				var faceIndices = [ 'a', 'b', 'c', 'd' ];
 				var NoiseObject = require('./PerlinSimplex');
@@ -813,6 +813,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				mainTerrrain.position = vecPos; 
 				mainTerrrain.geometry.materialsNeedUpdate = true;
 				mainTerrrain.name = "mainTerrrain";
+				mainGeometry.computeBoundingBox();
 				
 				//var quatX = new THREE.Quaternion();
 				//quatX.setFromAxisAngle( new THREE.Vector3(1,0,0), -Math.PI);
@@ -844,9 +845,9 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 					uniforms:   app.uniforms,
 				    vertexShader: simpleVert.value,
 				    fragmentShader: simpleFrag.value,
-					side: THREE.BackSide
-					
+					side: THREE.BackSide,
 				});
+				mat.wireframe = app.GuiVarHolder.wireframe;
 				return mat;
 			},
 			getMaterialLamb :function ()
