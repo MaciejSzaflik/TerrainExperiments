@@ -84,7 +84,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  	},
 				ambient: {
 			  		type: "v3",
-			  		value: new THREE.Vector3 (1.0, 0.0, 0.0)
+			  		value: new THREE.Vector3 (0.1, 0.1, 0.1)
 			  	},
 				texture: { type: "t", value: THREE.ImageUtils.loadTexture('js/textures/ground.jpg') }
 			},
@@ -171,6 +171,19 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			    var pos = app.createSphere(this.vertIndex,-30,1);
 				app.raycastTerrain(pos);	
 			  }
+			 this.LoadHeighMap = function()
+			  {
+				document.getElementById("fileBtn").click();
+			  }
+			  this.LoadTexture = function()
+			  {
+			    document.getElementById("textureBtn").click();	
+			  }
+			  this.AddMarker = function()
+			  {
+			    var pos = app.createSphere(this.vertIndex,-30,1);
+				app.raycastTerrain(pos);	
+			  }
 			  this.MoveTransformProt = function(){
 				this.object;
 				this.startPosition;
@@ -190,6 +203,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 					this.time = 1/this.time;
 					
 				}
+				
 				this.doTransform = function(fp){	
 					this.currentStep+= this.time/fp;
 						if(!this.end && this.currentStep <= 1.001)
@@ -282,6 +296,11 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  fol2.add(this.imageFildersVar,'TestMovement');
 			  fol2.add(this.imageFildersVar,'numberOfObjectForTest');
 			  fol2.add(this.imageFildersVar,'timeOfTransform');
+			 
+			 guiImg.add(this.imageFildersVar,'LoadHeighMap');
+			 guiImg.add(this.imageFildersVar,'LoadTexture');
+			  
+			
 			  
 	 this.GuiVarHolder = new this.FizzyText();
 			  var gui = new dat.GUI();  
@@ -367,7 +386,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	document.getElementById('threejs-container').addEventListener("click", this.selectCall);
 	
 	projector = new THREE.Projector();
-    
+	renderer.setClearColor( 0xff0000, 1 );
 
 	document.getElementById("fileBtn").addEventListener('change',
 		function () 
@@ -542,10 +561,16 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 	},
 	setUpCubeMap :function()
 	{			
+				/*var urlPrefix = "js/textures/images/";
+				var urls = [ urlPrefix + "test.png", urlPrefix + "test.png",
+					urlPrefix + "test.png", urlPrefix + "test.png",
+					urlPrefix + "test.png", urlPrefix + "test.png" ];
+				*/
 				var urlPrefix = "js/textures/";
 				var urls = [ urlPrefix + "posx.jpg", urlPrefix + "negx.jpg",
 					urlPrefix + "posy.jpg", urlPrefix + "negy.jpg",
-					urlPrefix + "posz.jpg", urlPrefix + "negz.jpg" ];
+					urlPrefix + "posz.jpg", urlPrefix + "negz.jpg" ];		
+				
 				var textureCube = THREE.ImageUtils.loadTextureCube( urls );
 
 				var cubeShader = THREE.ShaderLib['cube'];
@@ -564,7 +589,8 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				);
 				skyBox.position = new THREE.Vector3(0,0,0);
 				skyBox.name = "Skybox";
-				//scene.add( skyBox );
+				console.log(skyBox);
+				scene.add( skyBox );
 		},	
 	render :function ()
 	{
@@ -761,7 +787,6 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				    color = new THREE.Color( 0xffffff );  
 				    color.setRGB( valueNoise, valueNoise, valueNoise );
 					mainGeometry.vertices[ i ] = new THREE.Vector3(point.x,point.z + valueNoise*this.GuiVarHolder.noiseParam3,point.y);
-					//this.noiseAttributes.displacement.value.push(valueNoise*this.GuiVarHolder.noiseParam3);
 
 				    this.noiseValues.push(valueNoise);
 				    values.push(valueNoise);
@@ -783,7 +808,6 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 				    	mainGeometry.vertices[face.a], 
 				    	mainGeometry.vertices[face.b], 
 				    	mainGeometry.vertices[face.c]);	
-
 				    this.checkAndAdd(face.a, normalVec);
 				    this.checkAndAdd(face.b, normalVec);
 				    this.checkAndAdd(face.c, normalVec);

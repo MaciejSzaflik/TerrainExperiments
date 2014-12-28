@@ -14,7 +14,7 @@ void main() {
 									   dProd*lightColorDiffuse.y + ambient.y,
 									   dProd*lightColorDiffuse.z+ + ambient.z, 
 									   1.0);	
-				gl_FragColor = vec4(ambient,1.0);
+				gl_FragColor = lightColor*texture2D(texture, vUv);
 }
 
 
