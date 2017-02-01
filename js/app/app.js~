@@ -86,13 +86,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  		type: "v3",
 			  		value: new THREE.Vector3 (0.1, 0.1, 0.1)
 			  	},
-				texture1: { type: "t", value: THREE.ImageUtils.loadTexture('js/textures/dirt.jpg') },
-				texture2: { type: "t", value: THREE.ImageUtils.loadTexture('js/textures/grass.jpg') },
-				texture3: { type: "t", value: THREE.ImageUtils.loadTexture('js/textures/ground.jpg') },
-				times: {
-					type:'f',
-					value:0.025
-				}
+				texture: { type: "t", value: THREE.ImageUtils.loadTexture('js/textures/ground.jpg') }
 			},
 
 		    clock : 0,
@@ -322,14 +316,9 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			  var colorControler1 = f31.add(this.GuiVarHolder, 'lightCR',0,1);
 			  var colorControler2 = f31.add(this.GuiVarHolder, 'lightCG',0,1);
 			  var colorControler3 = f31.add(this.GuiVarHolder, 'lightCB',0,1);
-			   
-			  var tileController = f31.add(this.GuiVarHolder, 'tile',0,1);
-			   tileController.onChange(function(value) {
-			  	app.uniforms.times.value = value;
-			  });
-			  
+
     		  colorControler1.onChange(function(value) {
-			  	app.uniforms.lightColorDiffuse.value = new THREE.Vector3(value,app.GuiVarHolder.lightCG,app.GuiVarHolder.lightCB);
+			  	app.uniforms.lightColorDiffuse.value = new THREE.Vector3(app.GuiVarHolder.lightCG,app.GuiVarHolder.lightCB);
 			  });
 			  colorControler2.onChange(function(value) {
 			  	app.uniforms.lightColorDiffuse.value = new THREE.Vector3(app.GuiVarHolder.lightCR,value,app.GuiVarHolder.lightCB);
@@ -621,7 +610,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 		window.requestAnimationFrame( app.animate );
 		if(app.GuiVarHolder != null)
 		{
-					app.uniforms.mainLight.value = new THREE.Vector3(Math.cos(app.clock*app.GuiVarHolder.lightX)*0.25+ 0.75,Math.sin(app.clock*app.GuiVarHolder.lightY)*0.25 + 0.75,Math.cos(app.clock*app.GuiVarHolder.lightZ)*0.25 + 0.75) ;
+					app.uniforms.mainLight.value = new THREE.Vector3(Math.cos(app.clock*app.GuiVarHolder.lightX),Math.sin(app.clock*app.GuiVarHolder.lightY),Math.cos(app.clock*app.GuiVarHolder.lightZ));
 					app.uniforms.dis.value = app.GuiVarHolder.noiseParam3;
 		}
 		else
@@ -1026,7 +1015,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			
 			textureIsLoaded : function(e) 
 			{
-				//app.uniforms.texture.value = THREE.ImageUtils.loadTexture(e.target.result);
+				app.uniforms.texture.value = THREE.ImageUtils.loadTexture(e.target.result);
 			},
 			imageIsLoaded : function(e) 
 			{
@@ -1038,7 +1027,7 @@ light, material, renderer, scene ,verVert, verFrag,simpleVert, simpleFrag) {
 			    document.getElementById("myImg").src =  e.target.result;
 			    document.getElementById("convertedImage").src =e.target.result;;
 			    
-				//app.uniforms.texture.value = THREE.ImageUtils.loadTexture(e.target.result);
+				app.uniforms.texture.value = THREE.ImageUtils.loadTexture(e.target.result);
 				
 			    Caman("#myImg","#myImg", function () {
 

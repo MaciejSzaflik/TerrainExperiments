@@ -1,9 +1,3 @@
-// PerlinSimplex 1.2
-// Ported from Stefan Gustavson's java implementation by Sean McCullough banksean@gmail.com
-// http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf
-// Read Stefan's excellent paper for details on how this code works.
-// octaves and falloff implementation (and passing jslint) by Ron Valstar
-// also implemented Karsten Schmidt's implementation
 define(
 function() {
 	var PerlinSimplex = function() {
